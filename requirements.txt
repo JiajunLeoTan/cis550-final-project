@@ -1,0 +1,15 @@
+# Data cleaning and exploration
+pandas>=2.2.0
+numpy>=1.26.0
+jupyter>=1.0.0
+jupyterlab>=4.0.0
+matplotlib>=3.8.0
+seaborn>=0.13.0
+
+# Database connection and ingestion
+psycopg2-binary>=2.9.9
+sqlalchemy>=2.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+tqdm>=4.66.0
