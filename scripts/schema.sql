@@ -22,6 +22,9 @@ CREATE TABLE Brands (
 );
 
 -- Products
+-- Note: `bought_in_last_month` is intentionally omitted. The US asaniczka
+-- 1.4M dataset does not include that field. Recent-popularity queries
+-- compute `recent_review_count` on the fly from Reviews.review_timestamp.
 CREATE TABLE Products (
     asin VARCHAR(20) PRIMARY KEY,
     title VARCHAR(1024),
@@ -32,7 +35,6 @@ CREATE TABLE Products (
     stars DECIMAL(2, 1),
     review_count INTEGER DEFAULT 0,
     is_best_seller BOOLEAN DEFAULT FALSE,
-    bought_in_last_month INTEGER DEFAULT 0,
     category_id INTEGER REFERENCES Categories(category_id),
     brand_id INTEGER REFERENCES Brands(brand_id)
 );
@@ -63,3 +65,6 @@ CREATE INDEX idx_products_price ON Products(price);
 CREATE INDEX idx_reviews_asin ON Reviews(asin);
 CREATE INDEX idx_reviews_user ON Reviews(user_id);
 CREATE INDEX idx_reviews_rating ON Reviews(rating);
+-- NOTE: Do NOT add an index on Reviews(asin, review_timestamp) yet.
+-- You want that query slow pre-optimization so Milestone 5 can show a
+-- meaningful before/after speedup for the recent-popularity query.

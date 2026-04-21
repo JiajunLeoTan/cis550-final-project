@@ -11,6 +11,10 @@ Usage:
     3. Cleaned CSVs are written to data/cleaned/
 
 Adjust INPUT_FILES column names below if your raw CSVs use different headers.
+
+Note: `bought_in_last_month` is intentionally NOT handled here. The US
+asaniczka 1.4M dataset does not include that field. Recent-popularity is
+computed on the fly in the application queries using Reviews.review_timestamp.
 """
 
 import os
@@ -52,7 +56,6 @@ PRODUCT_COL_MAP = {
     "price": "price",
     "listPrice": "list_price",
     "isBestSeller": "is_best_seller",
-    "boughtInLastMonth": "bought_in_last_month",
     "categoryName": "category_name",
 }
 
@@ -174,7 +177,6 @@ def clean_products(categories_df):
     # --- Type casting ---
     df["stars"] = pd.to_numeric(df["stars"], errors="coerce")
     df["review_count"] = pd.to_numeric(df["review_count"], errors="coerce").fillna(0).astype(int)
-    df["bought_in_last_month"] = pd.to_numeric(df["bought_in_last_month"], errors="coerce").fillna(0).astype(int)
 
     # Handle isBestSeller — may be bool, string, or 0/1
     df["is_best_seller"] = df["is_best_seller"].map(
@@ -184,12 +186,11 @@ def clean_products(categories_df):
 
     # --- Outlier flagging ---
     suspect_price = df["price"] > 10_000
-    suspect_bought = df["bought_in_last_month"] > 50_000
-    n_suspect = (suspect_price | suspect_bought).sum()
+    n_suspect = suspect_price.sum()
     if n_suspect > 0:
-        print(f"  ⚠ {n_suspect} rows flagged as potential outliers (price>10k or bought>50k)")
+        print(f"  ⚠ {n_suspect} rows flagged as potential price outliers (price>10k)")
         print(f"    Keeping them but you may want to inspect data/cleaned/outliers.csv")
-        df[suspect_price | suspect_bought].to_csv(
+        df[suspect_price].to_csv(
             os.path.join(CLEAN_DIR, "outliers.csv"), index=False
         )
 
@@ -239,7 +240,7 @@ def clean_products(categories_df):
     products_out = df[[
         "asin", "title", "img_url", "product_url",
         "price", "list_price", "stars", "review_count",
-        "is_best_seller", "bought_in_last_month",
+        "is_best_seller",
         "category_id", "brand_id"
     ]]
 

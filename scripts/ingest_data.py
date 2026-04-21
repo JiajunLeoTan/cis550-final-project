@@ -56,7 +56,7 @@ TABLES = [
         "columns": [
             "asin", "title", "img_url", "product_url",
             "price", "list_price", "stars", "review_count",
-            "is_best_seller", "bought_in_last_month",
+            "is_best_seller",
             "category_id", "brand_id",
         ],
     },
@@ -141,19 +141,27 @@ def validate(conn):
     print("\n=== Validation ===")
     checks = [
         ("Orphan products (bad category_id)",
-         """SELECT COUNT(*) FROM products p
+         """SELECT COUNT(*)
+            FROM products p
+            LEFT JOIN categories c ON p.category_id = c.category_id
             WHERE p.category_id IS NOT NULL
-              AND p.category_id NOT IN (SELECT category_id FROM categories)"""),
+              AND c.category_id IS NULL"""),
         ("Orphan products (bad brand_id)",
-         """SELECT COUNT(*) FROM products p
+         """SELECT COUNT(*)
+            FROM products p
+            LEFT JOIN brands b ON p.brand_id = b.brand_id
             WHERE p.brand_id IS NOT NULL
-              AND p.brand_id NOT IN (SELECT brand_id FROM brands)"""),
+              AND b.brand_id IS NULL"""),
         ("Orphan reviews (bad asin)",
-         """SELECT COUNT(*) FROM reviews r
-            WHERE r.asin NOT IN (SELECT asin FROM products)"""),
+         """SELECT COUNT(*)
+            FROM reviews r
+            LEFT JOIN products p ON r.asin = p.asin
+            WHERE p.asin IS NULL"""),
         ("Orphan reviews (bad user_id)",
-         """SELECT COUNT(*) FROM reviews r
-            WHERE r.user_id NOT IN (SELECT user_id FROM users)"""),
+         """SELECT COUNT(*)
+            FROM reviews r
+            LEFT JOIN users u ON r.user_id = u.user_id
+            WHERE u.user_id IS NULL"""),
     ]
     with conn.cursor() as cur:
         all_ok = True
