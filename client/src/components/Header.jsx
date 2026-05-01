@@ -1,5 +1,6 @@
 import { NavLink, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext.jsx';
+import QueryModeToggle from './QueryModeToggle.jsx';
 
 export default function Header() {
   const { count } = useCart();
@@ -30,6 +31,7 @@ export default function Header() {
             <span>Cart</span>
             <span className="nav-cart-badge text-num">{count}</span>
           </Link>
+          <QueryModeToggle />
         </nav>
       </div>
     </header>

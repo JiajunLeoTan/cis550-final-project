@@ -1,7 +1,29 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
+const QUERY_MODE_KEY = 'queryMode';
+
+export function getQueryMode() {
+  if (typeof window === 'undefined') return 'old';
+  return window.localStorage.getItem(QUERY_MODE_KEY) === 'new' ? 'new' : 'old';
+}
+
+export function setQueryMode(mode) {
+  if (typeof window === 'undefined') return;
+  if (mode === 'new') {
+    window.localStorage.setItem(QUERY_MODE_KEY, 'new');
+  } else {
+    window.localStorage.removeItem(QUERY_MODE_KEY);
+  }
+}
+
+function withMode(path) {
+  if (getQueryMode() !== 'new') return path;
+  const sep = path.includes('?') ? '&' : '?';
+  return `${path}${sep}optimized=1`;
+}
+
 async function request(path, { method = 'GET', body, signal } = {}) {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetch(`${BASE_URL}${withMode(path)}`, {
     method,
     headers: body ? { 'Content-Type': 'application/json' } : undefined,
     body: body ? JSON.stringify(body) : undefined,
