@@ -186,28 +186,53 @@ def create_guest_user(conn):
     db_name = DB_CONFIG["dbname"]
 
     print(f"\n=== Creating guest user: {guest_user} ===")
+    conn.commit()
+    previous_autocommit = conn.autocommit
     conn.autocommit = True
-    with conn.cursor() as cur:
-        # Drop if exists, then recreate
-        cur.execute(sql.SQL("DROP ROLE IF EXISTS {}").format(sql.Identifier(guest_user)))
-        cur.execute(
-            sql.SQL("CREATE ROLE {} WITH LOGIN PASSWORD %s").format(sql.Identifier(guest_user)),
-            [guest_pass],
-        )
-        cur.execute(
-            sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(
-                sql.Identifier(db_name), sql.Identifier(guest_user)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", [guest_user])
+            role_exists = cur.fetchone() is not None
+
+            if role_exists:
+                cur.execute(
+                    sql.SQL("ALTER ROLE {} WITH LOGIN PASSWORD %s").format(
+                        sql.Identifier(guest_user)
+                    ),
+                    [guest_pass],
+                )
+            else:
+                cur.execute(
+                    sql.SQL("CREATE ROLE {} WITH LOGIN PASSWORD %s").format(
+                        sql.Identifier(guest_user)
+                    ),
+                    [guest_pass],
+                )
+
+            cur.execute(
+                sql.SQL("GRANT CONNECT ON DATABASE {} TO {}").format(
+                    sql.Identifier(db_name), sql.Identifier(guest_user)
+                )
             )
-        )
-        cur.execute(
-            sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(sql.Identifier(guest_user))
-        )
-        cur.execute(
-            sql.SQL("GRANT SELECT ON ALL TABLES IN SCHEMA public TO {}").format(
-                sql.Identifier(guest_user)
+            cur.execute(
+                sql.SQL("GRANT USAGE ON SCHEMA public TO {}").format(
+                    sql.Identifier(guest_user)
+                )
             )
-        )
-    conn.autocommit = False
+            cur.execute(
+                sql.SQL("GRANT SELECT ON ALL TABLES IN SCHEMA public TO {}").format(
+                    sql.Identifier(guest_user)
+                )
+            )
+            cur.execute(
+                sql.SQL(
+                    "ALTER DEFAULT PRIVILEGES IN SCHEMA public "
+                    "GRANT SELECT ON TABLES TO {}"
+                ).format(sql.Identifier(guest_user))
+            )
+    finally:
+        conn.autocommit = previous_autocommit
+
     print(f"  Guest user '{guest_user}' created with read-only access.")
     print(f"  Include these credentials in your Milestone 3 submission.")
 
