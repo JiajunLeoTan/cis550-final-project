@@ -224,14 +224,14 @@ function buildBenchmarks(input) {
       input: `keyword=${input.keyword}, minStars=4`,
       preSql: searchProductsQuery,
       postSql: searchProductsQueryOptimized,
-      params: [input.keyword, 4]
+      params: [input.keyword, 4, 100, 0]
     },
     {
       query: 'GET /deals',
       input: `maxPrice=${input.maxPrice}`,
       preSql: dealsQuery,
       postSql: dealsQueryOptimized,
-      params: [input.maxPrice]
+      params: [input.maxPrice, 0, 100, 0]
     },
     {
       query: 'GET /products/:asin/rating-distribution',

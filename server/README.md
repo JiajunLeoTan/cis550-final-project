@@ -31,7 +31,8 @@ PORT=8080
 
 - Routes are mounted at the root. There is no `/api/v1` prefix.
 - AWS RDS connections use `ssl: { rejectUnauthorized: false }`.
-- The complex queries are intentionally left unoptimized for Milestone 5.
+- Product SQL is split by feature under `server/queries/products/`, with
+  original and optimized variants exported through the barrel module.
 - `recent_review_count` is computed from `reviews.review_timestamp`; it is not stored on `products`.
 
 ## Routes

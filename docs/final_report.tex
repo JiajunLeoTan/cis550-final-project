@@ -39,7 +39,8 @@ Layer & Files & Responsibility \\
 Client & \texttt{client/src/pages} & User workflows, charts, cart state \\
 API & \texttt{server/routes} & Validation, caching, route contracts \\
 SQL & \texttt{server/queries} & Original and optimized query variants \\
-Data & \texttt{scripts} & Cleaning, schema creation, ingestion, timings \\
+Data & \texttt{data\_pipeline}, \texttt{database}, \texttt{scripts} &
+Cleaning, schema creation, ingestion, timings \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -113,16 +114,17 @@ where the planner benefits, push predicates earlier, introduce limits where the
 UI only needs top results, and benefit from final delivery indexes.
 
 Full SQL listings are in Appendix A via the route query modules:
-\texttt{server/queries/analytics.sql.js}, \texttt{server/queries/products.sql.js},
+\texttt{server/queries/analytics.sql.js}, \texttt{server/queries/products/},
 and \texttt{server/queries/cart.sql.js}.
 
 \section{Performance Evaluation}
 The benchmark runner executes one discarded warmup run, waits one second, then
 collects five measured \texttt{EXPLAIN ANALYZE} runs. The generated table is
 saved to \texttt{docs/timings.md}. The largest improvements now come from
-\texttt{pg\_trgm} search, a partial discount expression index, and materialized
-views for category comparison, brand performance, value components, and trending
-components. The top-value and trending optimized paths use a data-relative
+\texttt{pg\_trgm} search support remains available, but the largest measured
+improvements in this run come from a partial discount expression index and
+materialized views for category comparison, brand performance, value components,
+and trending components. The top-value and trending optimized paths use a data-relative
 12-month review window from the materialized view, because the loaded review
 corpus ends in 2023 while the server clock is in 2026.
 
@@ -131,10 +133,10 @@ corpus ends in 2023 while the server clock is in 2026.
 \toprule
 Query & Original median ms & Optimized median ms & Speedup \\
 \midrule
-Helpful reviews & 21.7 & 1.1 & 19.17x \\
-Top value & 444.4 & 0.8 & 530.94x \\
-Brand performance & 2849.7 & 0.0 & 58156.90x \\
-Value rankings & 9223.5 & 1.7 & 5586.64x \\
+Deals & 14769.5 & 0.5 & 31899.54x \\
+Brand performance & 457.2 & 0.1 & 9143.14x \\
+Value rankings & 9363.9 & 1.4 & 6741.49x \\
+Category comparison & 1962.4 & 0.4 & 5110.40x \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -157,7 +159,13 @@ backend URL. Add the live URL to the README and this report after deployment.
 \subsection{Analytics Queries}
 \verbatiminput{../server/queries/analytics.sql.js}
 \subsection{Product Queries}
-\verbatiminput{../server/queries/products.sql.js}
+\verbatiminput{../server/queries/products/index.js}
+\verbatiminput{../server/queries/products/search.sql.js}
+\verbatiminput{../server/queries/products/deals.sql.js}
+\verbatiminput{../server/queries/products/browse.sql.js}
+\verbatiminput{../server/queries/products/detail.sql.js}
+\verbatiminput{../server/queries/products/trending.sql.js}
+\verbatiminput{../server/queries/products/value.sql.js}
 \subsection{Cart Query}
 \verbatiminput{../server/queries/cart.sql.js}
 

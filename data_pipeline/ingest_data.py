@@ -6,10 +6,11 @@ Usage:
     1. Fill in your .env file with RDS credentials.
     2. Run the cleaning script first:  python data_pipeline/clean_data.py
     3. Run this script:                python data_pipeline/ingest_data.py
+       Optional path check only:        python data_pipeline/ingest_data.py --dry-run
 
 This script:
     - Connects to your PostgreSQL instance on AWS RDS
-    - Creates all tables (runs schema.sql)
+    - Creates all tables (runs database/schema.sql)
     - Loads cleaned CSVs in dependency order using COPY for speed
     - Validates row counts after loading
 """
@@ -90,7 +91,7 @@ def get_connection():
 
 def run_schema(conn):
     """Execute the DDL script to create/recreate all tables."""
-    print("\nRunning schema.sql...")
+    print("\nRunning database/schema.sql...")
     with open(SCHEMA_FILE, "r") as f:
         ddl = f.read()
     with conn.cursor() as cur:
@@ -179,6 +180,31 @@ def validate(conn):
         print("\n  Some checks failed — inspect the data above.")
 
 
+def validate_input_files():
+    """Verify the schema and cleaned CSV files exist before loading."""
+    missing = []
+
+    if not os.path.exists(SCHEMA_FILE):
+        missing.append(SCHEMA_FILE)
+
+    for table in TABLES:
+        path = os.path.join(CLEAN_DIR, table["file"])
+        if not os.path.exists(path):
+            missing.append(path)
+
+    if missing:
+        print("\nMissing required input files:")
+        for path in missing:
+            print(f"  - {path}")
+        print(f"\nRun  python data_pipeline/clean_data.py  before ingesting.")
+        sys.exit(1)
+
+    print("\nInput files found:")
+    print(f"  - {SCHEMA_FILE}")
+    for table in TABLES:
+        print(f"  - {os.path.join(CLEAN_DIR, table['file'])}")
+
+
 def create_guest_user(conn):
     """Create a read-only guest account for Milestone 3 submission."""
     guest_user = os.getenv("GUEST_USER", "guest")
@@ -245,13 +271,12 @@ def main():
     print("  CIS 5500 — Database Ingestion Pipeline")
     print("=" * 60)
 
-    # Verify cleaned files exist
-    for t in TABLES:
-        path = os.path.join(CLEAN_DIR, t["file"])
-        if not os.path.exists(path):
-            print(f"\n Missing: {path}")
-            print(f"   Run  python data_pipeline/clean_data.py  first.")
-            sys.exit(1)
+    dry_run = "--dry-run" in sys.argv
+    validate_input_files()
+
+    if dry_run:
+        print("\nDry run complete. No database connection attempted.")
+        return
 
     conn = get_connection()
 
