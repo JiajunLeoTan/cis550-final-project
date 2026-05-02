@@ -53,3 +53,7 @@ Thumbs.db
 *.log
 *.zip
 *.pdf
+.codex
+
+# Allow PDFs that ARE deliverables / course-supplied
+!docs/**/*.pdf

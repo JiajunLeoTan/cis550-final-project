@@ -28,7 +28,7 @@ const {
   trendingProductsQueryOptimized,
   topValueProductsQueryOptimized,
   valueRankingsQueryOptimized
-} = require('../server/queries/products.sql');
+} = require('../server/queries/products');
 const {
   cartSavingsQuery,
   cartSavingsQueryOptimized

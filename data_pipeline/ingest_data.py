@@ -4,8 +4,8 @@ Database Ingestion Script
 
 Usage:
     1. Fill in your .env file with RDS credentials.
-    2. Run the cleaning script first:  python scripts/clean_data.py
-    3. Run this script:                python scripts/ingest_data.py
+    2. Run the cleaning script first:  python data_pipeline/clean_data.py
+    3. Run this script:                python data_pipeline/ingest_data.py
 
 This script:
     - Connects to your PostgreSQL instance on AWS RDS
@@ -36,7 +36,7 @@ DB_CONFIG = {
 }
 
 CLEAN_DIR = os.path.join("data", "cleaned")
-SCHEMA_FILE = os.path.join("scripts", "schema.sql")
+SCHEMA_FILE = os.path.join("database", "schema.sql")
 
 # Tables in dependency order: parent tables first
 TABLES = [
@@ -250,7 +250,7 @@ def main():
         path = os.path.join(CLEAN_DIR, t["file"])
         if not os.path.exists(path):
             print(f"\n Missing: {path}")
-            print(f"   Run  python scripts/clean_data.py  first.")
+            print(f"   Run  python data_pipeline/clean_data.py  first.")
             sys.exit(1)
 
     conn = get_connection()

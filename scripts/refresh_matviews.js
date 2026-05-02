@@ -4,7 +4,7 @@ const pool = require('../server/db');
 
 (async () => {
   const sql = fs.readFileSync(
-    path.join(__dirname, 'refresh_matviews.sql'),
+    path.resolve(__dirname, '../database/refresh_matviews.sql'),
     'utf8'
   );
 

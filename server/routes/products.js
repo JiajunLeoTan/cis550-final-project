@@ -23,7 +23,7 @@ const {
   trendingProductsQueryOptimized,
   topValueProductsQueryOptimized,
   valueRankingsQueryOptimized
-} = require('../queries/products.sql');
+} = require('../queries/products');
 
 const router = express.Router();
 const ASIN_RE = /^[A-Z0-9]{10}$/;

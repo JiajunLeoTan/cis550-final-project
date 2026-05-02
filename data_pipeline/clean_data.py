@@ -7,7 +7,7 @@ Usage:
          - amazon_products.csv   (Amazon Products Dataset 2023 from Kaggle)
          - amazon_reviews.csv    (Amazon Reviews 2023 from Kaggle)
          - amazon_categories.csv (Category lookup table)
-    2. Run:  python scripts/clean_data.py
+    2. Run:  python data_pipeline/clean_data.py
     3. Cleaned CSVs are written to data/cleaned/
 
 Adjust INPUT_FILES column names below if your raw CSVs use different headers.
@@ -467,7 +467,7 @@ def main():
         size_mb = os.path.getsize(os.path.join(CLEAN_DIR, f)) / (1024 * 1024)
         print(f"    {f:30s} {size_mb:8.2f} MB")
     print("=" * 60)
-    print("\nNext step: run  python scripts/ingest_data.py  to load into PostgreSQL.")
+    print("\nNext step: run  python data_pipeline/ingest_data.py  to load into PostgreSQL.")
 
 
 if __name__ == "__main__":

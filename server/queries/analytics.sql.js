@@ -82,7 +82,7 @@ const reviewsTrendQuery = `
 `;
 
 // --- Optimised variants ---
-// Served from a materialized view populated by scripts/refresh_matviews.sql.
+// Served from a materialized view populated by database/refresh_matviews.sql.
 const categoriesCompareQueryOptimized = `
   SELECT
     category_name,
@@ -93,7 +93,7 @@ const categoriesCompareQueryOptimized = `
   ORDER BY category_name ASC;
 `;
 
-// Served from a materialized view populated by scripts/refresh_matviews.sql.
+// Served from a materialized view populated by database/refresh_matviews.sql.
 const brandsPerformanceQueryOptimized = `
   SELECT
     brand_name,

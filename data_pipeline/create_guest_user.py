@@ -5,7 +5,7 @@ Guest User Creation Script
 Usage:
     1. Fill in .env with your database and guest credentials.
     2. Run from the project root:
-         python scripts/create_guest_user.py
+         python data_pipeline/create_guest_user.py
 
 This script:
     - Connects to your PostgreSQL database
