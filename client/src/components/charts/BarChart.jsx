@@ -1,7 +1,7 @@
 export default function BarChart({
   data,
   height = 220,
-  barColor = 'var(--emerald-600)',
+  barColor = 'var(--accent)',
   valueFormat = (v) => v,
   showValues = true
 }) {
@@ -34,7 +34,6 @@ export default function BarChart({
                 y1={y}
                 y2={y}
                 stroke="var(--line)"
-                strokeDasharray={t === 0 ? '0' : '3 4'}
               />
               <text x={padL - 8} y={y + 3} textAnchor="end">
                 {valueFormat(max * t)}
@@ -57,20 +56,15 @@ export default function BarChart({
               y={y}
               width={w}
               height={h}
-              rx={6}
+              rx={2}
               fill={barColor}
-              style={{
-                transition: 'y 520ms var(--ease-out), height 520ms var(--ease-out)'
-              }}
             />
-            {showValues && h > 18 && (
+            {showValues && (
               <text
                 className="chart-axis"
                 x={x + w / 2}
-                y={y + 14}
+                y={Math.max(padT + 10, y - 6)}
                 textAnchor="middle"
-                fill="#fff"
-                style={{ fontSize: 10 }}
               >
                 {valueFormat(v)}
               </text>

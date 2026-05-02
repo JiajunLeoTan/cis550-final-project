@@ -55,12 +55,18 @@ export default function ProductDetail() {
           0
         ) / totalReviews
       : null;
-
+  const hasDiscount =
+    product.list_price != null &&
+    product.price != null &&
+    product.list_price > product.price;
+  const discountPct = hasDiscount
+    ? Math.round((1 - product.price / product.list_price) * 100)
+    : null;
   return (
-    <div className="container stack-lg fade-in">
-      <div className="row" style={{ fontSize: 13 }}>
+    <div className="container stack-lg">
+      <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13 }}>
         <Link to="/browse" className="muted">
-          ← Back to browse
+          Back to browse
         </Link>
       </div>
 
@@ -75,8 +81,7 @@ export default function ProductDetail() {
             aspectRatio: '4 / 3',
             display: 'grid',
             placeItems: 'center',
-            background:
-              'linear-gradient(140deg, var(--ivory-200), var(--ivory-100) 60%, var(--ivory-50))'
+            background: 'var(--paper-2)'
           }}
         >
           {product.img_url ? (
@@ -86,59 +91,64 @@ export default function ProductDetail() {
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
             />
           ) : (
-            <span className="muted" style={{ fontFamily: 'var(--font-mono)' }}>
+            <span className="muted" style={{ fontFamily: 'var(--font-sans)', fontSize: 13 }}>
               No image
             </span>
           )}
         </div>
 
         <div className="stack">
-          <div className="row row-wrap gap-2">
-            {product.category_name && (
-              <span className="pill">{product.category_name}</span>
-            )}
-            {product.brand_name && <span className="pill">{product.brand_name}</span>}
-            {product.is_best_seller && (
-              <span className="pill pill--gold">Best seller</span>
-            )}
-          </div>
-          <h1 className="h-display h-display--lg" style={{ margin: 0 }}>
+          {(product.brand_name || product.category_name || product.is_best_seller) && (
+            <div className="meta-line product-detail-meta">
+              {product.brand_name && (
+                <Link
+                  to={`/brand/${encodeURIComponent(product.brand_name)}`}
+                  className="product-detail-category-link"
+                >
+                  {product.brand_name}
+                </Link>
+              )}
+              {product.category_name && (
+                <Link
+                  to={`/category/${encodeURIComponent(product.category_name)}`}
+                  className="product-detail-category-link"
+                >
+                  {product.category_name}
+                </Link>
+              )}
+              {product.is_best_seller && (
+                <span style={{ color: 'var(--ink)' }}>Best seller</span>
+              )}
+            </div>
+          )}
+
+          <h1 className="page-title" style={{ fontSize: 'clamp(30px, 4vw, 44px)' }}>
             {product.title}
           </h1>
 
-          <div className="row gap-4" style={{ alignItems: 'baseline' }}>
-            <span
-              className="price"
-              style={{ fontSize: 36 }}
-            >
-              {formatCurrency(product.price)}
-            </span>
-            {product.list_price != null &&
-              product.price != null &&
-              product.list_price > product.price && (
-                <>
-                  <span className="price-strike" style={{ fontSize: 16 }}>
-                    {formatCurrency(product.list_price)}
-                  </span>
-                  <span className="pill pill--ember">
-                    Save {formatCurrency(product.list_price - product.price)}
-                  </span>
-                </>
-              )}
+          <div className="price" style={{ fontSize: 32 }}>
+            {formatCurrency(product.price)}
+            {hasDiscount && (
+              <span style={{ color: 'var(--ink-3)', fontSize: 18 }}>
+                {' '}
+                - was {formatCurrency(product.list_price)}{' '}
+                <span className="discount">({discountPct}% off)</span>
+              </span>
+            )}
           </div>
 
           <div className="row gap-4">
             <Rating stars={product.stars} count={product.review_count} size={16} />
             {avgVerifiedRatio != null && (
-              <span className="muted" style={{ fontSize: 13 }}>
-                · {Math.round(avgVerifiedRatio * 100)}% verified
+              <span className="meta-line">
+                {Math.round(avgVerifiedRatio * 100)}% verified
               </span>
             )}
           </div>
 
           <div className="row gap-2" style={{ marginTop: 'var(--s-4)' }}>
             <button
-              className={`btn ${inCart ? 'btn--ghost' : 'btn--emerald'} btn--lg`}
+              className={`btn ${inCart ? 'btn--quiet' : ''} btn--lg`}
               onClick={() =>
                 toggle({
                   asin: product.asin,
@@ -159,33 +169,28 @@ export default function ProductDetail() {
                 href={product.product_url}
                 target="_blank"
                 rel="noreferrer"
-                className="btn btn--ghost btn--lg"
+                className="btn btn--quiet btn--lg"
               >
-                View on retailer ↗
+                View on retailer
               </a>
             )}
           </div>
 
-          <div
-            className="row gap-4 muted"
-            style={{ fontSize: 12, fontFamily: 'var(--font-mono)', marginTop: 12 }}
-          >
-            <span>ASIN: {product.asin}</span>
+          <div className="meta-line" style={{ marginTop: 12 }}>
+            ASIN: {product.asin}
           </div>
         </div>
       </section>
 
-      <section className="grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.2fr)', gap: 'var(--s-8)' }}>
+      <section
+        className="grid"
+        style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.2fr)', gap: 'var(--s-8)' }}
+      >
         <div className="card">
           <div className="card-body">
-            <div className="section-header" style={{ marginBottom: 'var(--s-4)' }}>
-              <div className="title-block">
-                <span className="eyebrow">Ratings</span>
-                <h3 className="h-display h-display--md">Distribution</h3>
-              </div>
-              <div className="muted" style={{ fontSize: 13 }}>
-                {formatCount(totalReviews)} reviews
-              </div>
+            <div className="row between" style={{ alignItems: 'baseline', marginBottom: 'var(--s-4)' }}>
+              <h2 className="small-heading">Ratings distribution</h2>
+              <div className="meta-line">{formatCount(totalReviews)} reviews</div>
             </div>
             <BarChart
               data={(rating || [
@@ -195,16 +200,15 @@ export default function ProductDetail() {
                 { rating: 4, review_count: 0 },
                 { rating: 5, review_count: 0 }
               ]).map((r) => ({
-                label: `${r.rating}★`,
+                label: `${r.rating} star`,
                 value: r.review_count
               }))}
               valueFormat={(v) => formatCount(Math.round(v))}
-              barColor="var(--emerald-600)"
               showValues={totalReviews > 0}
             />
             {totalReviews === 0 && (
-              <div className="muted" style={{ fontSize: 13, marginTop: 12, textAlign: 'center' }}>
-                This ASIN has no reviews in the loaded corpus (~12k reviews across 1.4M products).
+              <div className="meta-line" style={{ marginTop: 12, textAlign: 'center' }}>
+                This ASIN has no reviews in the loaded corpus.
               </div>
             )}
           </div>
@@ -212,12 +216,9 @@ export default function ProductDetail() {
 
         <div className="card">
           <div className="card-body">
-            <div className="section-header" style={{ marginBottom: 'var(--s-4)' }}>
-              <div className="title-block">
-                <span className="eyebrow">Reviews</span>
-                <h3 className="h-display h-display--md">Most helpful</h3>
-              </div>
-            </div>
+            <h2 className="small-heading" style={{ marginBottom: 'var(--s-4)' }}>
+              Most helpful reviews
+            </h2>
             {reviewsLoading ? (
               <div className="stack">
                 {Array.from({ length: 3 }).map((_, i) => (
@@ -227,7 +228,7 @@ export default function ProductDetail() {
             ) : (reviews || []).length === 0 ? (
               <Empty title="No reviews yet." />
             ) : (
-              <div className="stack">
+              <div className="plain-list">
                 {reviews.slice(0, 4).map((r) => (
                   <ReviewItem key={r.review_id} review={r} />
                 ))}
@@ -238,12 +239,7 @@ export default function ProductDetail() {
       </section>
 
       <section>
-        <div className="section-header">
-          <div className="title-block">
-            <span className="eyebrow">Smarter picks</span>
-            <h2 className="h-display h-display--lg">Higher rated and cheaper.</h2>
-          </div>
-        </div>
+        <h2 className="section-title">Cheaper, higher-rated alternatives</h2>
         {altLoading ? (
           <div className="grid grid-4">
             {Array.from({ length: 4 }).map((_, i) => (
@@ -251,14 +247,11 @@ export default function ProductDetail() {
             ))}
           </div>
         ) : (alternatives || []).length === 0 ? (
-          <Empty
-            title="This product is already the Pareto pick."
-            description="No alternatives in the same category are both cheaper and higher rated."
-          />
+          <Empty title="No cheaper, higher-rated alternatives in this category." />
         ) : (
-          <div className="grid grid-4 stagger">
+          <div className="grid grid-4">
             {alternatives.map((p) => (
-              <ProductCard key={p.asin} product={p} badge={{ label: 'Better value', tone: 'emerald' }} />
+              <ProductCard key={p.asin} product={p} badge={{ label: 'Better value' }} />
             ))}
           </div>
         )}
@@ -269,51 +262,40 @@ export default function ProductDetail() {
 
 function ReviewItem({ review }) {
   return (
-    <div
-      style={{
-        padding: 'var(--s-4)',
-        border: '1px solid var(--line)',
-        borderRadius: 'var(--r-md)',
-        background: 'var(--surface-alt)'
-      }}
-    >
+    <article className="review-item">
       <div className="row between" style={{ alignItems: 'flex-start', marginBottom: 6 }}>
-        <div className="row gap-2">
+        <div className="row gap-2 meta-line">
           <span className="rating" style={{ fontWeight: 600 }}>
             <StarIcon size={14} />
-            <span className="text-num">{formatStars(review.rating)}</span>
+            <span>{formatStars(review.rating)}</span>
           </span>
-          {review.verified_purchase && (
-            <span className="pill pill--emerald" style={{ fontSize: 11 }}>
-              Verified
-            </span>
-          )}
+          {review.verified_purchase && <span>Verified purchase</span>}
         </div>
-        <span className="muted text-num" style={{ fontSize: 12 }}>
-          {formatDate(review.review_timestamp)}
-        </span>
+        <span className="meta-line">{formatDate(review.review_timestamp)}</span>
       </div>
       {review.review_title && (
-        <div style={{ fontWeight: 600, marginBottom: 4 }}>{review.review_title}</div>
+        <div style={{ color: 'var(--ink)', fontWeight: 600, marginBottom: 4 }}>
+          {review.review_title}
+        </div>
       )}
       {review.review_text && (
-        <p style={{ margin: 0, color: 'var(--ink-soft)', fontSize: 14 }}>
+        <p style={{ margin: 0, color: 'var(--ink-2)' }}>
           {review.review_text.length > 260
-            ? `${review.review_text.slice(0, 259)}…`
+            ? `${review.review_text.slice(0, 259)}...`
             : review.review_text}
         </p>
       )}
-      <div
-        className="row gap-4 muted"
-        style={{ marginTop: 8, fontSize: 12 }}
-      >
-        <span>👍 {formatCount(review.helpful_vote || 0)} helpful</span>
-        <span>
-          Reviewer avg {formatStars(review.reviewer_avg_rating)} ·{' '}
-          {formatCount(review.reviewer_total_reviews)} reviews
-        </span>
+      <div className="meta-line" style={{ marginTop: 8 }}>
+        {formatCount(review.helpful_vote || 0)} found this helpful
+        {review.reviewer_total_reviews != null && (
+          <>
+            {' '}
+            · Reviewer avg {formatStars(review.reviewer_avg_rating)} ·{' '}
+            {formatCount(review.reviewer_total_reviews)} reviews
+          </>
+        )}
       </div>
-    </div>
+    </article>
   );
 }
 

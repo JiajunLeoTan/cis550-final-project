@@ -1,5 +1,6 @@
 const express = require('express');
 const pool = require('../db');
+const { cached } = require('../cache');
 const {
   listCategoriesQuery,
   listBrandsQuery,
@@ -17,26 +18,39 @@ function isOptimized(req) {
 }
 
 const CACHE_TTL_MS = 60_000;
-const cache = new Map();
+const LONG_CACHE_CONTROL = 'public, max-age=300, stale-while-revalidate=60';
+const PRODUCT_CACHE_CONTROL = 'public, max-age=60';
 
 async function cachedQuery(key, sql) {
-  const hit = cache.get(key);
-  const now = Date.now();
-  if (hit && now - hit.at < CACHE_TTL_MS) {
-    return hit.rows;
+  return cached(key, CACHE_TTL_MS, async () => {
+    const { rows } = await pool.query(sql);
+    return rows;
+  });
+}
+
+const ASIN_RE = /^[A-Z0-9]{10}$/;
+
+function validateAsinParam(res, asin) {
+  if (!asin) {
+    return res.status(400).json({ error: 'missing required param: asin' });
   }
-  const { rows } = await pool.query(sql);
-  cache.set(key, { rows, at: now });
-  return rows;
+
+  if (!ASIN_RE.test(asin)) {
+    return res.status(400).json({ error: 'invalid param: asin' });
+  }
+
+  return null;
 }
 
 router.get('/categories', async (req, res, next) => {
   try {
     if (isOptimized(req)) {
-      const rows = await cachedQuery('categories', listCategoriesQueryOptimized);
+      const rows = await cachedQuery('meta:categories:optimized', listCategoriesQueryOptimized);
+      res.set('Cache-Control', LONG_CACHE_CONTROL);
       return res.json(rows);
     }
     const { rows } = await pool.query(listCategoriesQuery);
+    res.set('Cache-Control', LONG_CACHE_CONTROL);
     return res.json(rows);
   } catch (err) {
     return next(err);
@@ -46,10 +60,12 @@ router.get('/categories', async (req, res, next) => {
 router.get('/brands', async (req, res, next) => {
   try {
     if (isOptimized(req)) {
-      const rows = await cachedQuery('brands', listBrandsQueryOptimized);
+      const rows = await cachedQuery('meta:brands:optimized', listBrandsQueryOptimized);
+      res.set('Cache-Control', LONG_CACHE_CONTROL);
       return res.json(rows);
     }
     const { rows } = await pool.query(listBrandsQuery);
+    res.set('Cache-Control', LONG_CACHE_CONTROL);
     return res.json(rows);
   } catch (err) {
     return next(err);
@@ -59,8 +75,9 @@ router.get('/brands', async (req, res, next) => {
 router.get('/products/:asin', async (req, res, next) => {
   const { asin } = req.params;
 
-  if (!asin) {
-    return res.status(400).json({ error: 'missing required param: asin' });
+  const validationResponse = validateAsinParam(res, asin);
+  if (validationResponse) {
+    return validationResponse;
   }
 
   try {
@@ -71,6 +88,7 @@ router.get('/products/:asin', async (req, res, next) => {
       return res.status(404).json({ error: 'product not found' });
     }
 
+    res.set('Cache-Control', PRODUCT_CACHE_CONTROL);
     return res.json(rows[0]);
   } catch (err) {
     return next(err);

@@ -25,7 +25,7 @@ export default function QueryModeToggle() {
         onClick={() => apply('old')}
         aria-pressed={mode === 'old'}
       >
-        Old
+        standard
       </button>
       <button
         type="button"
@@ -33,7 +33,7 @@ export default function QueryModeToggle() {
         onClick={() => apply('new')}
         aria-pressed={mode === 'new'}
       >
-        New
+        optimized
       </button>
     </div>
   );

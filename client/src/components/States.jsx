@@ -29,7 +29,7 @@ export function Empty({ title = 'Nothing here yet', description, action }) {
   return (
     <div className="empty">
       <h3>{title}</h3>
-      {description && <p style={{ maxWidth: 420, margin: '0 auto' }}>{description}</p>}
+      {description && <p>{description}</p>}
       {action && <div style={{ marginTop: 16 }}>{action}</div>}
     </div>
   );
@@ -39,9 +39,9 @@ export function ErrorBanner({ error, onRetry }) {
   if (!error) return null;
   return (
     <div className="error row between" style={{ alignItems: 'center' }}>
-      <span>Something went wrong: {error.message || 'unknown error'}</span>
+      <span>{error.message || 'Something went wrong'}</span>
       {onRetry && (
-        <button className="btn btn--ghost btn--sm" onClick={onRetry}>
+        <button className="btn btn--quiet btn--sm" onClick={onRetry}>
           Retry
         </button>
       )}

@@ -1,8 +1,11 @@
 export default function HorizontalBars({
   data = [],
-  color = 'var(--emerald-600)',
+  color = 'var(--accent)',
   valueFormat = (v) => v,
-  height = 320
+  height = 320,
+  maxLabelChars = 24,
+  getHref,
+  onSelect
 }) {
   if (!data.length) return null;
   const max = Math.max(...data.map((d) => Number(d.value) || 0), 1);
@@ -12,6 +15,10 @@ export default function HorizontalBars({
   const padT = 10;
   const padB = 10;
   const rowH = (height - padT - padB) / data.length;
+  const truncate = (label) => {
+    const text = String(label || '-');
+    return text.length > maxLabelChars ? `${text.slice(0, maxLabelChars - 3)}...` : text;
+  };
 
   return (
     <svg
@@ -25,8 +32,20 @@ export default function HorizontalBars({
         const w = ((v / max) * (width - padL - padR)) || 0;
         const y = padT + i * rowH;
         const barH = Math.max(rowH - 10, 6);
-        return (
+        const valueText = valueFormat(v);
+        const valueX = Math.min(padL + w + 8, width - 8);
+        const valueAnchor = valueX >= width - 8 ? 'end' : 'start';
+        const href = getHref ? getHref(d) : null;
+        const handleClick = (event) => {
+          if (!onSelect || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+            return;
+          }
+          event.preventDefault();
+          onSelect(d);
+        };
+        const row = (
           <g key={i}>
+            <title>{`${d.label}: ${valueText}`}</title>
             <text
               className="chart-axis"
               x={padL - 12}
@@ -34,26 +53,40 @@ export default function HorizontalBars({
               textAnchor="end"
               style={{ fontSize: 11 }}
             >
-              {d.label}
+              {truncate(d.label)}
             </text>
             <rect
               x={padL}
               y={y}
               width={w}
               height={barH}
-              rx={5}
+              rx={2}
               fill={color}
-              style={{ transition: 'width 520ms var(--ease-out)' }}
             />
             <text
               className="chart-axis"
-              x={padL + w + 8}
+              x={valueX}
               y={y + barH / 2 + 4}
+              textAnchor={valueAnchor}
               style={{ fontSize: 11 }}
             >
-              {valueFormat(v)}
+              {valueText}
             </text>
           </g>
+        );
+
+        if (!href) return row;
+
+        return (
+          <a
+            key={i}
+            className="chart-link"
+            href={href}
+            onClick={handleClick}
+            aria-label={`Open ${d.label}`}
+          >
+            {row}
+          </a>
         );
       })}
     </svg>

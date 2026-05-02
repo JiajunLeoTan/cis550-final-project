@@ -4,10 +4,10 @@ export default function NotFound() {
   return (
     <div className="container">
       <div className="empty">
-        <h3>404 — not found</h3>
+        <h3>404 - not found</h3>
         <p>That page went looking for another URL.</p>
         <div style={{ marginTop: 16 }}>
-          <Link to="/" className="btn btn--emerald">
+          <Link to="/" className="btn">
             Back home
           </Link>
         </div>

@@ -1,109 +1,3 @@
--- CIS 5500 — Data-Driven Shopping Assistant
--- Database Schema
--- Run this ONCE on AWS RDS PostgreSQL instance before ingesting data.
-
--- Drop existing tables (in reverse dependency order) if re-creating
-DROP TABLE IF EXISTS Reviews CASCADE;
-DROP TABLE IF EXISTS Users CASCADE;
-DROP TABLE IF EXISTS Products CASCADE;
-DROP TABLE IF EXISTS Brands CASCADE;
-DROP TABLE IF EXISTS Categories CASCADE;
-
--- Categories (from amazon_categories.csv — uses original IDs, not SERIAL)
-CREATE TABLE Categories (
-    category_id INTEGER PRIMARY KEY,
-    category_name VARCHAR(255) NOT NULL UNIQUE
-);
-
--- Brands (extracted from product titles during cleaning)
-CREATE TABLE Brands (
-    brand_id INTEGER PRIMARY KEY,
-    brand_name VARCHAR(255) NOT NULL UNIQUE
-);
-
--- Products
--- Note: `bought_in_last_month` is intentionally omitted. The US asaniczka
--- 1.4M dataset does not include that field. Recent-popularity queries
--- compute `recent_review_count` on the fly from Reviews.review_timestamp.
-CREATE TABLE Products (
-    asin VARCHAR(20) PRIMARY KEY,
-    title VARCHAR(1024),
-    img_url TEXT,
-    product_url TEXT,
-    price DECIMAL(10, 2),
-    list_price DECIMAL(10, 2),
-    stars DECIMAL(2, 1),
-    review_count INTEGER DEFAULT 0,
-    is_best_seller BOOLEAN DEFAULT FALSE,
-    category_id INTEGER REFERENCES Categories(category_id),
-    brand_id INTEGER REFERENCES Brands(brand_id)
-);
-
--- Users
-CREATE TABLE Users (
-    user_id VARCHAR(128) PRIMARY KEY
-);
-
--- Reviews
-CREATE TABLE Reviews (
-    review_id INTEGER PRIMARY KEY,
-    asin VARCHAR(20) NOT NULL REFERENCES Products(asin),
-    user_id VARCHAR(128) NOT NULL REFERENCES Users(user_id),
-    rating DECIMAL(2, 1) NOT NULL,
-    review_title VARCHAR(1024),
-    review_text TEXT,
-    helpful_vote INTEGER DEFAULT 0,
-    verified_purchase BOOLEAN DEFAULT FALSE,
-    review_timestamp TIMESTAMP
-);
-
--- Indexes for common query patterns
-CREATE INDEX idx_products_category ON Products(category_id);
-CREATE INDEX idx_products_brand ON Products(brand_id);
-CREATE INDEX idx_products_stars ON Products(stars);
-CREATE INDEX idx_products_price ON Products(price);
-CREATE INDEX idx_reviews_asin ON Reviews(asin);
-CREATE INDEX idx_reviews_user ON Reviews(user_id);
-CREATE INDEX idx_reviews_rating ON Reviews(rating);
--- Optimization indexes for final delivery. Capture pre-optimization timings
--- before applying this block, then rebuild with these indexes for post timings.
-CREATE INDEX idx_reviews_asin_timestamp ON Reviews(asin, review_timestamp);
-CREATE INDEX idx_reviews_timestamp ON Reviews(review_timestamp);
-CREATE INDEX idx_products_category_price ON Products(category_id, price);
-CREATE INDEX idx_products_category_stars ON Products(category_id, stars);
-CREATE INDEX IF NOT EXISTS idx_products_category_stars_reviews
-    ON Products(category_id, stars DESC NULLS LAST, review_count DESC);
-CREATE INDEX IF NOT EXISTS idx_products_category_proven
-    ON Products(
-        category_id,
-        (CASE
-            WHEN stars >= 4 AND COALESCE(review_count, 0) > 0 THEN 0
-            WHEN COALESCE(review_count, 0) > 0 THEN 1
-            WHEN stars >= 4 THEN 2
-            ELSE 3
-        END),
-        (COALESCE(review_count, 0)) DESC,
-        stars DESC NULLS LAST,
-        is_best_seller DESC,
-        asin ASC
-    );
-CREATE INDEX IF NOT EXISTS idx_products_brand_proven
-    ON Products(
-        brand_id,
-        (CASE
-            WHEN stars >= 4 AND COALESCE(review_count, 0) > 0 THEN 0
-            WHEN COALESCE(review_count, 0) > 0 THEN 1
-            WHEN stars >= 4 THEN 2
-            ELSE 3
-        END),
-        (COALESCE(review_count, 0)) DESC,
-        stars DESC NULLS LAST,
-        is_best_seller DESC,
-        asin ASC
-    );
-CREATE INDEX idx_reviews_verified ON Reviews(verified_purchase) WHERE verified_purchase = TRUE;
-
--- Performance optimization structures for final delivery.
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE INDEX IF NOT EXISTS idx_products_title_trgm
@@ -120,7 +14,43 @@ CREATE INDEX IF NOT EXISTS idx_products_discount
       AND price IS NOT NULL
       AND price < list_price;
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS mv_value_score_components AS
+CREATE INDEX IF NOT EXISTS idx_products_category_stars_reviews
+    ON Products(category_id, stars DESC NULLS LAST, review_count DESC);
+
+DROP INDEX IF EXISTS idx_products_category_proven;
+CREATE INDEX IF NOT EXISTS idx_products_category_proven
+    ON Products(
+        category_id,
+        (CASE
+            WHEN stars >= 4 AND COALESCE(review_count, 0) > 0 THEN 0
+            WHEN COALESCE(review_count, 0) > 0 THEN 1
+            WHEN stars >= 4 THEN 2
+            ELSE 3
+        END),
+        (COALESCE(review_count, 0)) DESC,
+        stars DESC NULLS LAST,
+        is_best_seller DESC,
+        asin ASC
+    );
+
+DROP INDEX IF EXISTS idx_products_brand_proven;
+CREATE INDEX IF NOT EXISTS idx_products_brand_proven
+    ON Products(
+        brand_id,
+        (CASE
+            WHEN stars >= 4 AND COALESCE(review_count, 0) > 0 THEN 0
+            WHEN COALESCE(review_count, 0) > 0 THEN 1
+            WHEN stars >= 4 THEN 2
+            ELSE 3
+        END),
+        (COALESCE(review_count, 0)) DESC,
+        stars DESC NULLS LAST,
+        is_best_seller DESC,
+        asin ASC
+    );
+
+DROP MATERIALIZED VIEW IF EXISTS mv_value_score_components CASCADE;
+CREATE MATERIALIZED VIEW mv_value_score_components AS
 WITH category_price_bounds AS (
     SELECT
         category_id,
@@ -246,7 +176,8 @@ CREATE INDEX IF NOT EXISTS idx_mv_value_components_trending
     ON mv_value_score_components(category_id, recent_review_count DESC, stars DESC NULLS LAST, review_count DESC)
     INCLUDE (asin, brand_id, price);
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS mv_category_compare AS
+DROP MATERIALIZED VIEW IF EXISTS mv_category_compare CASCADE;
+CREATE MATERIALIZED VIEW mv_category_compare AS
 SELECT
     c.category_id,
     c.category_name,
@@ -262,7 +193,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_category_compare_id
 CREATE INDEX IF NOT EXISTS idx_mv_category_compare_name
     ON mv_category_compare(category_name);
 
-CREATE MATERIALIZED VIEW IF NOT EXISTS mv_brand_performance AS
+DROP MATERIALIZED VIEW IF EXISTS mv_brand_performance CASCADE;
+CREATE MATERIALIZED VIEW mv_brand_performance AS
 WITH brand_product_stats AS (
     SELECT
         b.brand_id,
@@ -302,3 +234,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_brand_performance_id
     ON mv_brand_performance(brand_id);
 CREATE INDEX IF NOT EXISTS idx_mv_brand_performance_sort
     ON mv_brand_performance(avg_review_score DESC, total_helpful_votes DESC, brand_name ASC);
+
+ANALYZE Products;
+ANALYZE Reviews;
+ANALYZE mv_value_score_components;
+ANALYZE mv_category_compare;
+ANALYZE mv_brand_performance;

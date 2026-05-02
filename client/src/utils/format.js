@@ -1,5 +1,5 @@
 export function formatCurrency(value, { compact = false } = {}) {
-  if (value == null || Number.isNaN(Number(value))) return '—';
+  if (value == null || Number.isNaN(Number(value))) return '-';
   const num = Number(value);
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
@@ -10,9 +10,9 @@ export function formatCurrency(value, { compact = false } = {}) {
 }
 
 export function formatStars(value) {
-  if (value == null) return '—';
+  if (value == null) return '-';
   const n = Number(value);
-  if (Number.isNaN(n)) return '—';
+  if (Number.isNaN(n)) return '-';
   return n.toFixed(1);
 }
 
@@ -24,7 +24,7 @@ export function formatCount(value) {
 }
 
 export function formatPercent(value, digits = 1) {
-  if (value == null || Number.isNaN(Number(value))) return '—';
+  if (value == null || Number.isNaN(Number(value))) return '-';
   return `${Number(value).toFixed(digits)}%`;
 }
 
@@ -44,5 +44,5 @@ export function formatDate(iso) {
 
 export function truncate(text, len = 120) {
   if (!text) return '';
-  return text.length > len ? `${text.slice(0, len - 1)}…` : text;
+  return text.length > len ? `${text.slice(0, len - 1)}...` : text;
 }

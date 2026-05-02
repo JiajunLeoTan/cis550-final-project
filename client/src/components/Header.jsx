@@ -1,6 +1,5 @@
 import { NavLink, Link } from 'react-router-dom';
 import { useCart } from '../context/CartContext.jsx';
-import QueryModeToggle from './QueryModeToggle.jsx';
 
 export default function Header() {
   const { count } = useCart();
@@ -8,7 +7,7 @@ export default function Header() {
     <header className="site-header">
       <div className="container nav">
         <Link to="/" className="brand" aria-label="Axiom home">
-          <span className="brand-mark">A</span>
+          {/* TODO: consider a project-specific publication name before final submission. */}
           <span>Axiom</span>
         </Link>
         <nav className="nav-links" aria-label="Primary">
@@ -25,13 +24,15 @@ export default function Header() {
             to="/value"
             className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}
           >
-            Value Rankings
+            Value rankings
           </NavLink>
-          <Link to="/cart" className="nav-cart" aria-label={`Cart with ${count} items`}>
-            <span>Cart</span>
-            <span className="nav-cart-badge text-num">{count}</span>
-          </Link>
-          <QueryModeToggle />
+          <NavLink
+            to="/cart"
+            className={({ isActive }) => `nav-cart${isActive ? ' active' : ''}`}
+            aria-label={`Cart with ${count} items`}
+          >
+            Cart ({count})
+          </NavLink>
         </nav>
       </div>
     </header>

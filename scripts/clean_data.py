@@ -19,6 +19,7 @@ computed on the fly in the application queries using Reviews.review_timestamp.
 
 import os
 import re
+import unicodedata
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -61,6 +62,7 @@ PRODUCT_COL_MAP = {
 
 REVIEW_COL_MAP = {
     "asin": "asin",
+    "parent_asin": "parent_asin",
     "user_id": "user_id",
     "rating": "rating",
     "title": "review_title",
@@ -73,6 +75,11 @@ REVIEW_COL_MAP = {
 # ---------------------------------------------------------------------------
 # HELPER FUNCTIONS
 # ---------------------------------------------------------------------------
+BRAND_SUFFIX_RE = re.compile(
+    r"\b(?:incorporated|inc|company|co|llc|ltd|limited|corp|corporation)\.?$",
+    re.IGNORECASE,
+)
+
 
 def parse_price(val):
     """Convert price strings like '$1,299.99' to float. Returns NaN on failure."""
@@ -119,16 +126,54 @@ def extract_brand(title):
 
 
 def normalize_brand(name):
-    """Normalize brand names for deduplication."""
+    """Normalize brand names into a punctuation/whitespace-free grouping key."""
     if name is None or pd.isna(name):
         return None
     if not isinstance(name, str):
         name = str(name)
-    # Lowercase, strip extra whitespace, remove trailing punctuation
-    name = name.strip().title()
+
+    name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
     name = re.sub(r"[®™©]+", "", name)
-    name = name.strip(" .,;:-")
-    return name if name else None
+    name = re.sub(r"[^A-Za-z0-9&+\s.'-]+", " ", name)
+    name = re.sub(r"\s+", " ", name).strip(" .,;:-_|/\\")
+
+    while True:
+        stripped = BRAND_SUFFIX_RE.sub("", name).strip(" .,;:-_|/\\")
+        if stripped == name:
+            break
+        name = stripped
+
+    key = re.sub(r"[^a-z0-9]+", "", name.lower())
+    return key if key else None
+
+
+def canonical_brand_name(name):
+    """Return a readable display name after removing obvious suffix noise."""
+    if name is None or pd.isna(name):
+        return None
+    if not isinstance(name, str):
+        name = str(name)
+
+    name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode("ascii")
+    name = re.sub(r"[®™©]+", "", name)
+    name = re.sub(r"[^A-Za-z0-9&+\s.'-]+", " ", name)
+    name = re.sub(r"\s+", " ", name).strip(" .,;:-_|/\\")
+
+    while True:
+        stripped = BRAND_SUFFIX_RE.sub("", name).strip(" .,;:-_|/\\")
+        if stripped == name:
+            break
+        name = stripped
+
+    name = re.sub(r"[^A-Za-z0-9&+\s'-]+", " ", name)
+    name = re.sub(r"\s+", " ", name).strip()
+    if not name:
+        return None
+
+    return " ".join(
+        word.upper() if len(word) <= 3 and word.isupper() else word.capitalize()
+        for word in name.split()
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -220,18 +265,47 @@ def clean_products(categories_df):
     # --- Extract brands ---
     print("  Extracting brands from titles...")
     df["_raw_brand"] = df["title"].apply(extract_brand)
-    df["_norm_brand"] = df["_raw_brand"].apply(normalize_brand)
+    df["_brand_key"] = df["_raw_brand"].apply(normalize_brand)
+    df["_brand_display"] = df["_raw_brand"].apply(canonical_brand_name)
 
-    # Build brands table
-    unique_brands = df["_norm_brand"].dropna().unique()
-    brands_df = pd.DataFrame({
-        "brand_id": range(1, len(unique_brands) + 1),
-        "brand_name": unique_brands,
-    })
-    brand_lookup = dict(zip(brands_df["brand_name"], brands_df["brand_id"]))
-    df["brand_id"] = df["_norm_brand"].map(brand_lookup).astype("Int64")
+    brand_counts = df["_brand_key"].dropna().value_counts()
+    kept_brand_keys = set(brand_counts[brand_counts >= 5].index)
+    dropped_brand_rows = int(df["_brand_key"].notna().sum() - df["_brand_key"].isin(kept_brand_keys).sum())
 
-    print(f"  Extracted {len(brands_df)} unique brands")
+    brand_candidates = df[df["_brand_key"].isin(kept_brand_keys)][["_brand_key", "_brand_display"]].dropna()
+    display_names = (
+        brand_candidates
+        .groupby("_brand_key")["_brand_display"]
+        .agg(lambda values: values.value_counts().index[0])
+    )
+
+    brands_df = (
+        pd.DataFrame({
+            "_brand_key": list(kept_brand_keys),
+            "brand_name": [display_names.get(key, key.title()) for key in kept_brand_keys],
+            "product_count": [int(brand_counts[key]) for key in kept_brand_keys],
+        })
+        .sort_values(["brand_name", "_brand_key"])
+        .reset_index(drop=True)
+    )
+    brands_df.insert(0, "brand_id", range(1, len(brands_df) + 1))
+    if brands_df["brand_name"].duplicated().any():
+        seen_names = {}
+        unique_names = []
+        for _, row in brands_df.iterrows():
+            brand_name = row["brand_name"]
+            if brand_name in seen_names:
+                brand_name = f"{brand_name} {row['_brand_key'][:8].upper()}"
+            seen_names[brand_name] = True
+            unique_names.append(brand_name)
+        brands_df["brand_name"] = unique_names
+
+    brand_lookup = dict(zip(brands_df["_brand_key"], brands_df["brand_id"]))
+    df["brand_id"] = df["_brand_key"].map(brand_lookup).astype("Int64")
+    brands_df = brands_df[["brand_id", "brand_name"]]
+
+    print(f"  Extracted {len(brands_df)} brands with >=5 products")
+    print(f"  Set {dropped_brand_rows} products with singleton/rare brands to NULL brand_id")
 
     # --- Text cleaning ---
     df["title"] = df["title"].str.strip()
@@ -267,27 +341,41 @@ def clean_reviews(valid_asins: set):
     total_raw = 0
     total_orphans = 0
     total_dupes = 0
+    total_parent_asin_fallbacks = 0
 
     for i, chunk in enumerate(tqdm(chunks, desc="  Processing review chunks")):
         chunk = chunk.rename(columns=REVIEW_COL_MAP)
         total_raw += len(chunk)
 
         # --- Drop rows missing essential fields ---
-        chunk = chunk.dropna(subset=["asin", "user_id", "rating"])
+        chunk = chunk.dropna(subset=["user_id", "rating"])
 
-        # --- Deduplication within chunk ---
-        before = len(chunk)
-        chunk = chunk.drop_duplicates(subset=["asin", "user_id", "review_timestamp"], keep="first")
-        total_dupes += before - len(chunk)
+        if "parent_asin" not in chunk.columns:
+            chunk["parent_asin"] = pd.NA
+
+        chunk["asin"] = chunk["asin"].astype("string").str.strip()
+        chunk["parent_asin"] = chunk["parent_asin"].astype("string").str.strip()
+
+        direct_matches = chunk["asin"].isin(valid_asins)
+        parent_matches = chunk["parent_asin"].isin(valid_asins)
+        use_parent_asin = ~direct_matches & parent_matches
+        total_parent_asin_fallbacks += int(use_parent_asin.sum())
+        chunk.loc[use_parent_asin, "asin"] = chunk.loc[use_parent_asin, "parent_asin"]
+
+        # --- Type casting ---
+        chunk["rating"] = pd.to_numeric(chunk["rating"], errors="coerce")
+        chunk = chunk.dropna(subset=["rating"])
+        chunk["helpful_vote"] = pd.to_numeric(chunk["helpful_vote"], errors="coerce").fillna(0).astype(int)
 
         # --- Filter orphan reviews (asin not in cleaned products) ---
         before = len(chunk)
         chunk = chunk[chunk["asin"].isin(valid_asins)]
         total_orphans += before - len(chunk)
 
-        # --- Type casting ---
-        chunk["rating"] = pd.to_numeric(chunk["rating"], errors="coerce")
-        chunk["helpful_vote"] = pd.to_numeric(chunk["helpful_vote"], errors="coerce").fillna(0).astype(int)
+        # --- Deduplication within chunk ---
+        before = len(chunk)
+        chunk = chunk.drop_duplicates(subset=["asin", "user_id", "review_timestamp"], keep="first")
+        total_dupes += before - len(chunk)
 
         # verified_purchase
         chunk["verified_purchase"] = chunk["verified_purchase"].map(
@@ -310,7 +398,10 @@ def clean_reviews(valid_asins: set):
 
         cleaned_chunks.append(chunk)
 
-    reviews_df = pd.concat(cleaned_chunks, ignore_index=True)
+    reviews_df = pd.concat(cleaned_chunks, ignore_index=True) if cleaned_chunks else pd.DataFrame(columns=[
+        "asin", "user_id", "rating", "review_title", "review_text",
+        "helpful_vote", "verified_purchase", "review_timestamp"
+    ])
 
     # Global deduplication (across chunks)
     before = len(reviews_df)
@@ -321,6 +412,7 @@ def clean_reviews(valid_asins: set):
     reviews_df.insert(0, "review_id", range(1, len(reviews_df) + 1))
 
     print(f"  Total raw review rows: {total_raw}")
+    print(f"  parent_asin fallbacks: {total_parent_asin_fallbacks}")
     print(f"  Duplicates removed:    {total_dupes}")
     print(f"  Orphan reviews removed:{total_orphans}")
     print(f"  Final review count:    {len(reviews_df)}")

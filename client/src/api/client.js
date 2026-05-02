@@ -58,9 +58,20 @@ export const api = {
   brands: (opts) => request('/brands', opts),
 
   product: (asin, opts) => request(`/products/${encodeURIComponent(asin)}`, opts),
-  searchProducts: ({ keyword, minStars } = {}, opts) =>
-    request(`/products/search${qs({ keyword, minStars })}`, opts),
-  deals: ({ maxPrice } = {}, opts) => request(`/deals${qs({ maxPrice })}`, opts),
+  searchProducts: ({ keyword, minStars, limit, offset } = {}, opts) =>
+    request(`/products/search${qs({ keyword, minStars, limit, offset })}`, opts),
+  deals: ({ maxPrice, minStars, limit, offset } = {}, opts) =>
+    request(`/deals${qs({ maxPrice, minStars, limit, offset })}`, opts),
+  categoryProducts: ({ category, minStars, maxPrice, limit, offset } = {}, opts) =>
+    request(
+      `/products/category${qs({ category, minStars, maxPrice, limit, offset })}`,
+      opts
+    ),
+  brandProducts: ({ brand, minStars, maxPrice, limit, offset } = {}, opts) =>
+    request(
+      `/products/brand${qs({ brand, minStars, maxPrice, limit, offset })}`,
+      opts
+    ),
   ratingDistribution: (asin, opts) =>
     request(`/products/${encodeURIComponent(asin)}/rating-distribution`, opts),
   helpfulReviews: (asin, opts) =>

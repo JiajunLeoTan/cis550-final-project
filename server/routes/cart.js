@@ -6,6 +6,8 @@ const {
 } = require('../queries/cart.sql');
 
 const router = express.Router();
+const ASIN_RE = /^[A-Z0-9]{10}$/;
+const MAX_CART_ASINS = 200;
 
 function isOptimized(req) {
   const v = req.query.optimized;
@@ -19,7 +21,11 @@ router.post('/cart/savings', async (req, res, next) => {
     return res.status(400).json({ error: 'missing required param: asins' });
   }
 
-  if (!Array.isArray(asins) || !asins.every((asin) => typeof asin === 'string')) {
+  if (
+    !Array.isArray(asins)
+    || asins.length > MAX_CART_ASINS
+    || !asins.every((asin) => typeof asin === 'string' && ASIN_RE.test(asin))
+  ) {
     return res.status(400).json({ error: 'invalid param: asins' });
   }
 

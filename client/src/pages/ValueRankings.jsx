@@ -3,22 +3,21 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useApi } from '../api/useApi.js';
 import Rating from '../components/Rating.jsx';
-import AnimatedNumber from '../components/AnimatedNumber.jsx';
 import { Empty, ErrorBanner } from '../components/States.jsx';
-import { formatCount, formatCurrency } from '../utils/format.js';
+import { formatCurrency } from '../utils/format.js';
 
 const PRESETS = [
   { name: 'Balanced', w: { wRating: 0.25, wReviews: 0.25, wPriceEff: 0.25, wRecent: 0.25 } },
   { name: 'Quality first', w: { wRating: 0.5, wReviews: 0.3, wPriceEff: 0.1, wRecent: 0.1 } },
-  { name: 'Best bang for buck', w: { wRating: 0.2, wReviews: 0.15, wPriceEff: 0.55, wRecent: 0.1 } },
-  { name: 'Hot right now', w: { wRating: 0.15, wReviews: 0.2, wPriceEff: 0.1, wRecent: 0.55 } }
+  { name: 'Price first', w: { wRating: 0.2, wReviews: 0.15, wPriceEff: 0.55, wRecent: 0.1 } },
+  { name: 'Recent activity', w: { wRating: 0.15, wReviews: 0.2, wPriceEff: 0.1, wRecent: 0.55 } }
 ];
 
 const WEIGHT_META = [
-  { key: 'wRating', label: 'Rating strength', description: 'Weight on 1–5 star score.' },
+  { key: 'wRating', label: 'Rating strength', description: 'Weight on 1-5 star score.' },
   { key: 'wReviews', label: 'Review depth', description: 'Weight on total review volume.' },
   { key: 'wPriceEff', label: 'Price efficiency', description: 'Weight on cheapness within category.' },
-  { key: 'wRecent', label: 'Recent momentum', description: 'Weight on reviews in the last 3 months.' }
+  { key: 'wRecent', label: 'Recent activity', description: 'Weight on reviews in the last 3 months.' }
 ];
 
 function useDebounced(value, delay = 400) {
@@ -40,27 +39,20 @@ export default function ValueRankings() {
     [keyed]
   );
 
-  const sum = WEIGHT_META.reduce((s, m) => s + (weights[m.key] || 0), 0);
-
   const rows = useMemo(() => (data || []).slice(0, 25), [data]);
   const top = rows[0];
 
   const applyPreset = (preset) => setWeights(preset.w);
 
   return (
-    <div className="container stack-lg fade-in">
-      <div className="section-header">
-        <div className="title-block">
-          <span className="eyebrow">Value Rankings</span>
-          <h1 className="h-display h-display--lg">
-            Tune the weights. The ranking responds.
-          </h1>
-          <p className="lead" style={{ maxWidth: 620 }}>
-            We normalize each dimension to 0–1 per product, scale by your weights, and
-            re-rank the whole catalog live.
-          </p>
-        </div>
-      </div>
+    <div className="container stack-lg">
+      <header>
+        <h1 className="page-title">Value rankings</h1>
+        <p className="lead">
+          We normalize each dimension to 0-1 per product, scale by your weights, and
+          re-rank the whole catalog live.
+        </p>
+      </header>
 
       <section
         className="grid"
@@ -75,17 +67,15 @@ export default function ValueRankings() {
           style={{
             padding: 'var(--s-6)',
             position: 'sticky',
-            top: 88,
-            background:
-              'linear-gradient(165deg, var(--surface), var(--ivory-50))'
+            top: 88
           }}
         >
-          <span className="eyebrow">Presets</span>
-          <div className="row row-wrap gap-2" style={{ marginTop: 10, marginBottom: 20 }}>
+          <h2 className="small-heading">Presets</h2>
+          <div className="row row-wrap gap-2" style={{ marginTop: 12, marginBottom: 24 }}>
             {PRESETS.map((p) => (
               <button
                 key={p.name}
-                className="btn btn--ghost btn--sm"
+                className="btn btn--quiet btn--sm"
                 onClick={() => applyPreset(p)}
               >
                 {p.name}
@@ -100,12 +90,7 @@ export default function ValueRankings() {
                   <label className="label" htmlFor={m.key} style={{ margin: 0 }}>
                     {m.label}
                   </label>
-                  <span
-                    className="text-num"
-                    style={{ fontSize: 12, color: 'var(--ink-soft)' }}
-                  >
-                    {weights[m.key].toFixed(2)}
-                  </span>
+                  <span className="filter-value">{weights[m.key].toFixed(2)}</span>
                 </div>
                 <input
                   id={m.key}
@@ -119,69 +104,35 @@ export default function ValueRankings() {
                     setWeights((w) => ({ ...w, [m.key]: Number(e.target.value) }))
                   }
                 />
-                <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                <div className="meta-line" style={{ marginTop: 4 }}>
                   {m.description}
                 </div>
               </div>
             ))}
           </div>
-
-          <div
-            style={{
-              marginTop: 'var(--s-6)',
-              paddingTop: 'var(--s-4)',
-              borderTop: '1px solid var(--line)',
-              fontSize: 12,
-              color: 'var(--ink-muted)',
-              fontFamily: 'var(--font-mono)'
-            }}
-          >
-            Σ weights = {sum.toFixed(2)} · server renormalizes
-          </div>
         </aside>
 
         <div className="stack-lg">
-          <div
-            className="card"
-            style={{
-              padding: 'var(--s-6)',
-              background:
-                'linear-gradient(150deg, var(--graphite-900), var(--graphite-800))',
-              color: 'var(--ivory-100)',
-              position: 'relative',
-              overflow: 'hidden'
-            }}
-          >
-            <div
-              aria-hidden
-              style={{
-                position: 'absolute',
-                inset: 0,
-                background:
-                  'radial-gradient(400px 200px at 90% 20%, rgba(202, 160, 74, 0.2), transparent 60%)'
-              }}
-            />
-            <div style={{ position: 'relative' }}>
-              <span className="eyebrow" style={{ color: 'var(--gold-200)' }}>
-                #1 for your weights
-              </span>
+          <div className="card">
+            <div className="card-body">
+              <h2 className="card-title">Top result</h2>
               {loading && !top ? (
-                <div className="skeleton" style={{ height: 120, marginTop: 12, background: 'rgba(255,255,255,0.08)' }} />
+                <div className="skeleton" style={{ height: 120, marginTop: 12 }} />
               ) : error ? (
                 <ErrorBanner error={error} />
               ) : !top ? (
-                <div className="muted" style={{ color: 'rgba(251,247,238,0.7)', marginTop: 8 }}>
+                <div className="muted" style={{ marginTop: 8 }}>
                   No products matched.
                 </div>
               ) : (
-                <div className="row gap-6" style={{ marginTop: 14, alignItems: 'center' }}>
+                <div className="row gap-6" style={{ marginTop: 16, alignItems: 'center' }}>
                   <div
                     style={{
                       width: 120,
                       height: 120,
-                      borderRadius: 'var(--r-md)',
+                      borderRadius: 'var(--r-lg)',
                       overflow: 'hidden',
-                      background: 'rgba(255,253,245,0.08)',
+                      background: 'var(--paper-2)',
                       display: 'grid',
                       placeItems: 'center',
                       flexShrink: 0
@@ -199,43 +150,27 @@ export default function ValueRankings() {
                     <Link
                       to={`/product/${encodeURIComponent(top.asin)}`}
                       style={{
-                        fontFamily: 'var(--font-display)',
-                        fontSize: 22,
-                        color: 'var(--ivory-100)',
-                        fontWeight: 500,
-                        letterSpacing: '-0.01em',
+                        color: 'var(--ink)',
                         display: '-webkit-box',
-                        WebkitLineClamp: 2,
+                        fontSize: 22,
+                        fontWeight: 400,
+                        lineHeight: 1.25,
+                        overflow: 'hidden',
                         WebkitBoxOrient: 'vertical',
-                        overflow: 'hidden'
+                        WebkitLineClamp: 2
                       }}
                     >
                       {top.title}
                     </Link>
-                    <div className="row gap-4 muted" style={{ color: 'rgba(251,247,238,0.7)', fontSize: 13, marginTop: 6 }}>
-                      {top.brand_name && <span>{top.brand_name}</span>}
-                      {top.category_name && <span>· {top.category_name}</span>}
+                    <div className="meta-line" style={{ marginTop: 6 }}>
+                      {[top.brand_name, top.category_name].filter(Boolean).join(' · ')}
                     </div>
                     <div className="row gap-6" style={{ marginTop: 14, alignItems: 'baseline' }}>
-                      <span
-                        style={{
-                          fontFamily: 'var(--font-display)',
-                          fontSize: 28,
-                          color: 'var(--gold-400)'
-                        }}
-                      >
-                        <AnimatedNumber
-                          value={(top.value_score || 0) * 100}
-                          format={(n) => n.toFixed(1)}
-                          duration={600}
-                        />
+                      <span className="price">{formatCurrency(top.price)}</span>
+                      <span style={{ fontSize: 24 }}>
+                        {((top.value_score || 0) * 100).toFixed(1)}
                       </span>
-                      <span style={{ color: 'rgba(251,247,238,0.6)', fontSize: 12 }}>
-                        value score / 100
-                      </span>
-                      <span style={{ color: 'var(--ivory-100)', fontSize: 16, fontWeight: 600 }}>
-                        {formatCurrency(top.price)}
-                      </span>
+                      <span className="meta-line">value score / 100</span>
                     </div>
                   </div>
                 </div>
@@ -245,16 +180,9 @@ export default function ValueRankings() {
 
           <div className="card">
             <div className="card-body">
-              <div className="section-header" style={{ marginBottom: 'var(--s-4)' }}>
-                <div className="title-block">
-                  <span className="eyebrow">Ranked list</span>
-                  <h2 className="h-display h-display--md">Top 25</h2>
-                </div>
-                {loading && (
-                  <span className="muted text-num" style={{ fontSize: 12 }}>
-                    Recomputing…
-                  </span>
-                )}
+              <div className="row between" style={{ alignItems: 'baseline', marginBottom: 'var(--s-4)' }}>
+                <h2 className="card-title">Top 25</h2>
+                {loading && <span className="meta-line">Recomputing</span>}
               </div>
 
               {error ? (
@@ -268,7 +196,7 @@ export default function ValueRankings() {
               ) : rows.length === 0 ? (
                 <Empty title="No products match these weights." />
               ) : (
-                <div className="stack" style={{ gap: 6 }}>
+                <div className="plain-list">
                   {rows.map((r, i) => (
                     <RankRow key={r.asin} rank={i + 1} row={r} />
                   ))}
@@ -285,33 +213,15 @@ export default function ValueRankings() {
 function RankRow({ rank, row }) {
   const scorePct = Math.max(0, Math.min(100, (row.value_score || 0) * 100));
   return (
-    <Link
-      to={`/product/${encodeURIComponent(row.asin)}`}
-      className="card-hover"
-      style={{
-        display: 'grid',
-        gridTemplateColumns: '48px 52px minmax(0, 1fr) 140px 120px 140px',
-        gap: 'var(--s-4)',
-        alignItems: 'center',
-        padding: '10px 14px',
-        borderRadius: 'var(--r-md)',
-        transition: 'background-color var(--dur-2) var(--ease-out)',
-        borderBottom: '1px solid var(--line)'
-      }}
-    >
-      <span
-        className="text-num"
-        style={{ color: 'var(--ink-muted)', fontSize: 13 }}
-      >
-        #{rank}
-      </span>
+    <Link to={`/product/${encodeURIComponent(row.asin)}`} className="rank-row">
+      <span className="meta-line">#{rank}</span>
       <div
         style={{
           width: 48,
           height: 48,
-          borderRadius: 'var(--r-sm)',
+          borderRadius: 'var(--r)',
           overflow: 'hidden',
-          background: 'var(--ivory-200)'
+          background: 'var(--paper-2)'
         }}
       >
         {row.img_url && (
@@ -325,60 +235,22 @@ function RankRow({ rank, row }) {
       <div style={{ minWidth: 0 }}>
         <div
           style={{
-            fontWeight: 600,
             display: '-webkit-box',
-            WebkitLineClamp: 1,
+            fontWeight: 400,
+            overflow: 'hidden',
             WebkitBoxOrient: 'vertical',
-            overflow: 'hidden'
+            WebkitLineClamp: 1
           }}
         >
           {row.title}
         </div>
-        <div
-          className="muted"
-          style={{ fontSize: 12, display: 'flex', gap: 8 }}
-        >
-          {row.category_name && <span>{row.category_name}</span>}
-          {row.brand_name && <span>· {row.brand_name}</span>}
+        <div className="meta-line">
+          {[row.category_name, row.brand_name].filter(Boolean).join(' · ')}
         </div>
       </div>
       <Rating stars={row.stars} count={row.review_count} size={12} />
-      <span className="text-num" style={{ fontWeight: 600 }}>
-        {formatCurrency(row.price)}
-      </span>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '60px 1fr',
-          alignItems: 'center',
-          gap: 8
-        }}
-      >
-        <span
-          className="text-num"
-          style={{ fontWeight: 600, color: 'var(--emerald-700)' }}
-        >
-          {scorePct.toFixed(1)}
-        </span>
-        <div
-          style={{
-            height: 6,
-            background: 'var(--ivory-200)',
-            borderRadius: 'var(--r-full)',
-            overflow: 'hidden'
-          }}
-        >
-          <div
-            style={{
-              width: `${scorePct}%`,
-              height: '100%',
-              background:
-                'linear-gradient(90deg, var(--emerald-500), var(--gold-500))',
-              transition: 'width 520ms var(--ease-out)'
-            }}
-          />
-        </div>
-      </div>
+      <span>{formatCurrency(row.price)}</span>
+      <span>{scorePct.toFixed(1)} / 100</span>
     </Link>
   );
 }

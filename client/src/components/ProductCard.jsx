@@ -26,7 +26,12 @@ export default function ProductCard({ product, badge }) {
     is_best_seller
   } = product;
 
-  const showBadge = badge ?? (is_best_seller ? { label: 'Best seller', tone: 'gold' } : null);
+  const meta = [brand_name, category_name].filter(Boolean).join(' · ');
+  const showBadge = badge ?? (is_best_seller ? { label: 'Best seller' } : null);
+  const badgeClass =
+    showBadge?.tone === 'positive' || showBadge?.tone === 'discount'
+      ? 'product-badge product-badge--positive'
+      : 'product-badge';
 
   return (
     <Link to={`/product/${encodeURIComponent(asin)}`} className="card card-hover product-card">
@@ -36,27 +41,11 @@ export default function ProductCard({ product, badge }) {
         ) : (
           <span>{initials(title)}</span>
         )}
-        {showBadge && (
-          <span
-            className={`pill pill--${showBadge.tone || 'emerald'}`}
-            style={{
-              position: 'absolute',
-              top: 12,
-              left: 12,
-              backdropFilter: 'blur(6px)',
-              background: 'rgba(255, 253, 245, 0.9)'
-            }}
-          >
-            {showBadge.label}
-          </span>
-        )}
       </div>
       <div className="product-card-body">
-        <div className="row row-wrap gap-2" style={{ marginBottom: 2 }}>
-          {category_name && <span className="eyebrow" style={{ fontSize: 11 }}>{category_name}</span>}
-        </div>
+        {meta && <div className="product-meta-line">{meta}</div>}
         <div className="product-title">{title || 'Untitled product'}</div>
-        {brand_name && <div className="muted" style={{ fontSize: 13 }}>{brand_name}</div>}
+        {showBadge && <div className={badgeClass}>{showBadge.label}</div>}
         <div className="product-meta">
           <div>
             <span className="price price--sm">{formatCurrency(price)}</span>

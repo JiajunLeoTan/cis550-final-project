@@ -1,0 +1,164 @@
+\documentclass[10pt]{article}
+\usepackage[margin=0.72in]{geometry}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{hyperref}
+\usepackage{verbatim}
+\usepackage{enumitem}
+\setlist{nosep,leftmargin=*}
+
+\title{Axiom Shopping Assistant: CIS 5500 Final Report}
+\author{Group members: add names before submission}
+\date{Spring 2026}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+Axiom is a data-driven shopping assistant built on Amazon product, category, and
+review data. The application helps users search products, compare alternatives,
+inspect review quality signals, estimate cart savings, and explore category and
+brand-level analytics. The project emphasizes a normalized relational design,
+clear API contracts, and a visible original-versus-optimized query mode exposed
+through the \texttt{?optimized=1} flag.
+
+\section{Architecture}
+The system has three layers. The frontend is a React/Vite single-page
+application with pages for home, browsing, product detail, cart, analytics, and
+value rankings. The backend is an Express server with route modules for product
+workflows, cart savings, metadata, and analytics. PostgreSQL on AWS RDS stores
+the five normalized relations and is accessed through the Node \texttt{pg}
+connection pool.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+Layer & Files & Responsibility \\
+\midrule
+Client & \texttt{client/src/pages} & User workflows, charts, cart state \\
+API & \texttt{server/routes} & Validation, caching, route contracts \\
+SQL & \texttt{server/queries} & Original and optimized query variants \\
+Data & \texttt{scripts} & Cleaning, schema creation, ingestion, timings \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Data}
+The raw data consists of \texttt{amazon\_products.csv},
+\texttt{amazon\_reviews.csv}, and \texttt{amazon\_categories.csv}. The cleaner
+deduplicates products by ASIN, parses numeric fields, maps category IDs,
+extracts and canonicalizes brands from product titles, and keeps only reviews
+whose ASIN or parent ASIN can be linked to a cleaned product. Brand entity
+resolution lowercases and strips punctuation for grouping, removes common legal
+suffixes such as Inc., Co., LLC, and Ltd., and drops brands with fewer than five
+products so rare singletons become \texttt{NULL brand\_id}.
+
+\begin{center}
+\begin{tabular}{lrr}
+\toprule
+Relation & Cleaned rows & Notes \\
+\midrule
+Categories & 248 & Original category IDs preserved \\
+Brands & 26,484 & Rare brands with fewer than five products dropped \\
+Products & 1,426,336 & Deduplicated by ASIN \\
+Users & 11,902 & Extracted from linked reviews \\
+Reviews & 11,927 & Linked through ASIN or parent ASIN \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+The current raw review file contains many ASINs that are absent from the product
+file: 689,477 raw reviews were filtered as orphan reviews. A larger final review
+table therefore requires a matching product/review source pair, not additional
+sampling inside the cleaner.
+
+\section{Database}
+\begin{center}
+\includegraphics[width=0.95\linewidth]{er_diagram.png}
+\end{center}
+
+The schema has five relations: Categories, Brands, Products, Users, and Reviews.
+Products reference Categories and Brands; Reviews reference Products and Users.
+All tables are in third normal form:
+
+\textbf{Categories.} The functional dependency is
+\texttt{category\_id -> category\_name}; \texttt{category\_id} is the primary
+key, and \texttt{category\_name} is also unique. Every non-trivial dependency has
+a superkey on the left.
+
+\textbf{Brands.} The dependency is \texttt{brand\_id -> brand\_name};
+\texttt{brand\_id} is the primary key, and \texttt{brand\_name} is unique.
+Therefore no non-key attribute determines another non-key attribute.
+
+\textbf{Products.} The dependency is \texttt{asin -> title, img\_url,
+product\_url, price, list\_price, stars, review\_count, is\_best\_seller,
+category\_id, brand\_id}. ASIN is the primary key, so every non-trivial
+dependency has a superkey determinant.
+
+\textbf{Users.} The only stored attribute is \texttt{user\_id}, which is the
+primary key. There are no non-key attributes and no transitive dependencies.
+
+\textbf{Reviews.} The dependency is \texttt{review\_id -> asin, user\_id,
+rating, review\_title, review\_text, helpful\_vote, verified\_purchase,
+review\_timestamp}. \texttt{review\_id} is the primary key; product and user
+details remain in their own relations, avoiding transitive dependencies.
+
+\section{Queries}
+The most complex query families are brand performance, review trends, trending
+products, top value products, and value rankings. They combine joins,
+aggregation, filtering, ranking, and date windows. The original variants are
+kept for timing comparisons, and the optimized variants reduce repeated scans
+where the planner benefits, push predicates earlier, introduce limits where the
+UI only needs top results, and benefit from final delivery indexes.
+
+Full SQL listings are in Appendix A via the route query modules:
+\texttt{server/queries/analytics.sql.js}, \texttt{server/queries/products.sql.js},
+and \texttt{server/queries/cart.sql.js}.
+
+\section{Performance Evaluation}
+The benchmark runner executes one discarded warmup run, waits one second, then
+collects five measured \texttt{EXPLAIN ANALYZE} runs. The generated table is
+saved to \texttt{docs/timings.md}. The largest improvements now come from
+\texttt{pg\_trgm} search, a partial discount expression index, and materialized
+views for category comparison, brand performance, value components, and trending
+components. The top-value and trending optimized paths use a data-relative
+12-month review window from the materialized view, because the loaded review
+corpus ends in 2023 while the server clock is in 2026.
+
+\begin{center}
+\begin{tabular}{lrrr}
+\toprule
+Query & Original median ms & Optimized median ms & Speedup \\
+\midrule
+Helpful reviews & 21.7 & 1.1 & 19.17x \\
+Top value & 444.4 & 0.8 & 530.94x \\
+Brand performance & 2849.7 & 0.0 & 58156.90x \\
+Value rankings & 9223.5 & 1.7 & 5586.64x \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Technical Challenges}
+The largest data challenge was aligning review ASINs with the product corpus.
+The cleaner now supports \texttt{parent\_asin} fallback, but a high-volume review
+table still requires a matching product source. On the backend, the main
+engineering constraint was preserving the public API and original SQL variants
+while adding optimized paths, validation, route-level caching, and benchmark
+instrumentation.
+
+\section{Extra Credit}
+The recommended extra-credit path is deployment: host the backend on Render or
+Fly.io, host the frontend on Vercel, and set \texttt{VITE\_API\_BASE\_URL} to the
+backend URL. Add the live URL to the README and this report after deployment.
+
+\appendix
+\section{SQL Listings}
+\subsection{Analytics Queries}
+\verbatiminput{../server/queries/analytics.sql.js}
+\subsection{Product Queries}
+\verbatiminput{../server/queries/products.sql.js}
+\subsection{Cart Query}
+\verbatiminput{../server/queries/cart.sql.js}
+
+\end{document}

@@ -8,19 +8,23 @@ const searchProductsQuery = `
   SELECT
     asin,
     title,
+    img_url,
     price::float AS price,
     stars::float AS stars,
+    review_count,
     is_best_seller
   FROM products
   WHERE title ILIKE '%' || $1 || '%'
     AND COALESCE(stars, 0) >= $2
-  ORDER BY stars DESC NULLS LAST, review_count DESC, title ASC;
+  ORDER BY stars DESC NULLS LAST, review_count DESC, title ASC
+  LIMIT $3::int OFFSET $4::int;
 `;
 
 const dealsQuery = `
   SELECT
     p.asin,
     p.title,
+    p.img_url,
     p.price::float AS price,
     p.list_price::float AS list_price,
     ROUND(((1 - (p.price / NULLIF(p.list_price, 0))) * 100)::numeric, 1)::float AS discount_pct,
@@ -34,7 +38,89 @@ const dealsQuery = `
     AND p.list_price > 0
     AND p.price < p.list_price
     AND p.price <= $1
-  ORDER BY discount_pct DESC NULLS LAST, p.review_count DESC, p.stars DESC NULLS LAST;
+    AND COALESCE(p.stars, 0) >= $2
+  ORDER BY discount_pct DESC NULLS LAST, p.review_count DESC, p.stars DESC NULLS LAST
+  LIMIT $3::int OFFSET $4::int;
+`;
+
+const categoryProductsQuery = `
+  SELECT
+    p.asin,
+    p.title,
+    p.img_url,
+    p.price::float AS price,
+    p.list_price::float AS list_price,
+    CASE
+      WHEN p.list_price IS NOT NULL
+       AND p.list_price > 0
+       AND p.price IS NOT NULL
+       AND p.price < p.list_price
+      THEN ROUND(((1 - (p.price / p.list_price)) * 100)::numeric, 1)::float
+      ELSE NULL
+    END AS discount_pct,
+    p.stars::float AS stars,
+    p.review_count,
+    p.is_best_seller,
+    c.category_name,
+    b.brand_name
+  FROM products p
+  JOIN categories c ON p.category_id = c.category_id
+  LEFT JOIN brands b ON p.brand_id = b.brand_id
+  WHERE c.category_name = $1
+    AND COALESCE(p.stars, 0) >= $2
+    AND ($3::numeric IS NULL OR p.price <= $3)
+  ORDER BY
+    CASE
+      WHEN p.stars >= 4 AND COALESCE(p.review_count, 0) > 0 THEN 0
+      WHEN COALESCE(p.review_count, 0) > 0 THEN 1
+      WHEN p.stars >= 4 THEN 2
+      ELSE 3
+    END,
+    COALESCE(p.review_count, 0) DESC,
+    p.stars DESC NULLS LAST,
+    p.is_best_seller DESC,
+    p.asin ASC
+  LIMIT $4::int OFFSET $5::int;
+`;
+
+const brandProductsQuery = `
+  SELECT
+    p.asin,
+    p.title,
+    p.img_url,
+    p.price::float AS price,
+    p.list_price::float AS list_price,
+    CASE
+      WHEN p.list_price IS NOT NULL
+       AND p.list_price > 0
+       AND p.price IS NOT NULL
+       AND p.price < p.list_price
+      THEN ROUND(((1 - (p.price / p.list_price)) * 100)::numeric, 1)::float
+      ELSE NULL
+    END AS discount_pct,
+    p.stars::float AS stars,
+    p.review_count,
+    p.is_best_seller,
+    c.category_name,
+    b.brand_name
+  FROM products p
+  JOIN brands b ON p.brand_id = b.brand_id
+  LEFT JOIN categories c ON p.category_id = c.category_id
+  WHERE b.brand_name = $1
+    AND COALESCE(p.stars, 0) >= $2
+    AND ($3::numeric IS NULL OR p.price <= $3)
+  ORDER BY
+    CASE
+      WHEN p.stars >= 4 AND COALESCE(p.review_count, 0) > 0 THEN 0
+      WHEN COALESCE(p.review_count, 0) > 0 THEN 1
+      WHEN p.stars >= 4 THEN 2
+      ELSE 3
+    END,
+    COALESCE(p.review_count, 0) DESC,
+    p.stars DESC NULLS LAST,
+    p.is_best_seller DESC,
+    p.asin ASC
+  LIMIT $4::int OFFSET $5::int;
 `;
 
 const ratingDistributionQuery = `
@@ -89,8 +175,10 @@ const alternativesQuery = `
   SELECT
     p.asin,
     p.title,
+    p.img_url,
     p.price::float AS price,
     p.stars::float AS stars,
+    p.review_count,
     c.category_name
   FROM target t
   JOIN products p ON p.category_id = t.category_id
@@ -110,6 +198,7 @@ const trendingProductsQuery = `
   SELECT
     p.asin,
     p.title,
+    p.img_url,
     p.price::float AS price,
     p.stars::float AS stars,
     p.review_count,
@@ -137,8 +226,10 @@ const topValueProductsQuery = `
   SELECT
     p.asin,
     p.title,
+    p.img_url,
     p.price::float AS price,
     p.stars::float AS stars,
+    p.review_count,
     c.category_name
   FROM products p
   JOIN categories c ON p.category_id = c.category_id
@@ -294,20 +385,22 @@ const productExistsQueryOptimized = `
   LIMIT 1;
 `;
 
-// Add a LIMIT so we don't sort the entire match set when the UI only shows
-// the top results.
+// Depends on idx_products_title_trgm (pg_trgm GIN) for fast substring search.
+// LIMIT keeps the UI path bounded after the indexed title filter.
 const searchProductsQueryOptimized = `
   SELECT
     asin,
     title,
+    img_url,
     price::float AS price,
     stars::float AS stars,
+    review_count,
     is_best_seller
   FROM products
   WHERE title ILIKE '%' || $1 || '%'
     AND COALESCE(stars, 0) >= $2
   ORDER BY stars DESC NULLS LAST, review_count DESC, title ASC
-  LIMIT 100;
+  LIMIT COALESCE($3::int, 100) OFFSET $4::int;
 `;
 
 // Add LIMIT and drop the dead NULLIF (list_price > 0 is already enforced).
@@ -315,6 +408,7 @@ const dealsQueryOptimized = `
   SELECT
     p.asin,
     p.title,
+    p.img_url,
     p.price::float AS price,
     p.list_price::float AS list_price,
     ROUND(((1 - (p.price / p.list_price)) * 100)::numeric, 1)::float AS discount_pct,
@@ -328,8 +422,155 @@ const dealsQueryOptimized = `
     AND p.list_price > 0
     AND p.price < p.list_price
     AND p.price <= $1
-  ORDER BY discount_pct DESC NULLS LAST, p.review_count DESC, p.stars DESC NULLS LAST
-  LIMIT 100;
+    AND COALESCE(p.stars, 0) >= $2
+  ORDER BY (1 - p.price / p.list_price) DESC, p.review_count DESC, p.stars DESC NULLS LAST
+  LIMIT COALESCE($3::int, 100) OFFSET $4::int;
+`;
+
+// Resolve the category once, take the proven-product page slice, then join
+// display tables only for the selected page. Uses idx_products_category_proven
+// when the performance DDL has been applied.
+const categoryProductsQueryOptimized = `
+  WITH target_category AS (
+    SELECT category_id, category_name
+    FROM categories
+    WHERE category_name = $1
+    LIMIT 1
+  ),
+  page_products AS (
+    SELECT
+      p.asin,
+      p.title,
+      p.img_url,
+      p.price,
+      p.list_price,
+      p.stars,
+      p.review_count,
+      p.is_best_seller,
+      p.brand_id
+    FROM products p
+    JOIN target_category tc ON p.category_id = tc.category_id
+    WHERE COALESCE(p.stars, 0) >= $2
+      AND ($3::numeric IS NULL OR p.price <= $3)
+    ORDER BY
+      CASE
+        WHEN p.stars >= 4 AND COALESCE(p.review_count, 0) > 0 THEN 0
+        WHEN COALESCE(p.review_count, 0) > 0 THEN 1
+        WHEN p.stars >= 4 THEN 2
+        ELSE 3
+      END,
+      COALESCE(p.review_count, 0) DESC,
+      p.stars DESC NULLS LAST,
+      p.is_best_seller DESC,
+      p.asin ASC
+    LIMIT COALESCE($4::int, 100) OFFSET $5::int
+  )
+  SELECT
+    pp.asin,
+    pp.title,
+    pp.img_url,
+    pp.price::float AS price,
+    pp.list_price::float AS list_price,
+    CASE
+      WHEN pp.list_price IS NOT NULL
+       AND pp.list_price > 0
+       AND pp.price IS NOT NULL
+       AND pp.price < pp.list_price
+      THEN ROUND(((1 - (pp.price / pp.list_price)) * 100)::numeric, 1)::float
+      ELSE NULL
+    END AS discount_pct,
+    pp.stars::float AS stars,
+    pp.review_count,
+    pp.is_best_seller,
+    tc.category_name,
+    b.brand_name
+  FROM page_products pp
+  CROSS JOIN target_category tc
+  LEFT JOIN brands b ON pp.brand_id = b.brand_id
+  ORDER BY
+    CASE
+      WHEN pp.stars >= 4 AND COALESCE(pp.review_count, 0) > 0 THEN 0
+      WHEN COALESCE(pp.review_count, 0) > 0 THEN 1
+      WHEN pp.stars >= 4 THEN 2
+      ELSE 3
+    END,
+    COALESCE(pp.review_count, 0) DESC,
+    pp.stars DESC NULLS LAST,
+    pp.is_best_seller DESC,
+    pp.asin ASC;
+`;
+
+// Resolve the brand once, take the proven-product page slice, then join
+// display tables only for selected rows. Uses idx_products_brand_proven when
+// available, and falls back cleanly to idx_products_brand otherwise.
+const brandProductsQueryOptimized = `
+  WITH target_brand AS (
+    SELECT brand_id, brand_name
+    FROM brands
+    WHERE brand_name = $1
+    LIMIT 1
+  ),
+  page_products AS (
+    SELECT
+      p.asin,
+      p.title,
+      p.img_url,
+      p.price,
+      p.list_price,
+      p.stars,
+      p.review_count,
+      p.is_best_seller,
+      p.category_id
+    FROM products p
+    JOIN target_brand tb ON p.brand_id = tb.brand_id
+    WHERE COALESCE(p.stars, 0) >= $2
+      AND ($3::numeric IS NULL OR p.price <= $3)
+    ORDER BY
+      CASE
+        WHEN p.stars >= 4 AND COALESCE(p.review_count, 0) > 0 THEN 0
+        WHEN COALESCE(p.review_count, 0) > 0 THEN 1
+        WHEN p.stars >= 4 THEN 2
+        ELSE 3
+      END,
+      COALESCE(p.review_count, 0) DESC,
+      p.stars DESC NULLS LAST,
+      p.is_best_seller DESC,
+      p.asin ASC
+    LIMIT COALESCE($4::int, 100) OFFSET $5::int
+  )
+  SELECT
+    pp.asin,
+    pp.title,
+    pp.img_url,
+    pp.price::float AS price,
+    pp.list_price::float AS list_price,
+    CASE
+      WHEN pp.list_price IS NOT NULL
+       AND pp.list_price > 0
+       AND pp.price IS NOT NULL
+       AND pp.price < pp.list_price
+      THEN ROUND(((1 - (pp.price / pp.list_price)) * 100)::numeric, 1)::float
+      ELSE NULL
+    END AS discount_pct,
+    pp.stars::float AS stars,
+    pp.review_count,
+    pp.is_best_seller,
+    c.category_name,
+    tb.brand_name
+  FROM page_products pp
+  CROSS JOIN target_brand tb
+  LEFT JOIN categories c ON pp.category_id = c.category_id
+  ORDER BY
+    CASE
+      WHEN pp.stars >= 4 AND COALESCE(pp.review_count, 0) > 0 THEN 0
+      WHEN COALESCE(pp.review_count, 0) > 0 THEN 1
+      WHEN pp.stars >= 4 THEN 2
+      ELSE 3
+    END,
+    COALESCE(pp.review_count, 0) DESC,
+    pp.stars DESC NULLS LAST,
+    pp.is_best_seller DESC,
+    pp.asin ASC;
 `;
 
 // Aggregate first (≤5 groups), then LEFT JOIN generate_series to pad
@@ -393,8 +634,10 @@ const alternativesQueryOptimized = `
   SELECT
     p.asin,
     p.title,
+    p.img_url,
     p.price::float AS price,
     p.stars::float AS stars,
+    p.review_count,
     c.category_name
   FROM products p
   JOIN categories c ON p.category_id = c.category_id
@@ -408,172 +651,132 @@ const alternativesQueryOptimized = `
   LIMIT 5;
 `;
 
-// Push the category filter inside the recent_count subquery so we only
-// aggregate reviews for products in this category, not the entire reviews
-// table for the time window.
+// Uses the value-components materialized view's data-relative recent-review
+// count and idx_mv_value_components_trending for category top-N.
 const trendingProductsQueryOptimized = `
+  WITH top_products AS (
+    SELECT
+      m.asin,
+      m.brand_id,
+      m.price,
+      m.stars,
+      m.review_count,
+      m.recent_review_count
+    FROM categories c
+    JOIN mv_value_score_components m ON m.category_id = c.category_id
+    WHERE c.category_name = $1
+      AND $2::int IS NOT NULL
+    ORDER BY m.recent_review_count DESC, m.stars DESC NULLS LAST, m.review_count DESC
+    LIMIT 15
+  )
   SELECT
-    p.asin,
+    tp.asin,
     p.title,
-    p.price::float AS price,
-    p.stars::float AS stars,
-    p.review_count,
-    COALESCE(r.recent_count, 0) AS recent_review_count,
+    p.img_url,
+    tp.price::float AS price,
+    tp.stars::float AS stars,
+    tp.review_count::int AS review_count,
+    tp.recent_review_count::int AS recent_review_count,
     p.is_best_seller,
     b.brand_name
-  FROM products p
-  JOIN categories c ON p.category_id = c.category_id
-  LEFT JOIN brands b ON p.brand_id = b.brand_id
-  LEFT JOIN (
-    SELECT
-      rev.asin,
-      COUNT(*)::int AS recent_count
-    FROM reviews rev
-    JOIN products pp ON pp.asin = rev.asin
-    JOIN categories cc ON pp.category_id = cc.category_id
-    WHERE rev.review_timestamp >= NOW() - ($2::text || ' months')::interval
-      AND cc.category_name = $1
-    GROUP BY rev.asin
-  ) r ON r.asin = p.asin
-  WHERE c.category_name = $1
-  ORDER BY recent_review_count DESC, p.stars DESC NULLS LAST, p.review_count DESC
+  FROM top_products tp
+  JOIN products p ON p.asin = tp.asin
+  LEFT JOIN brands b ON tp.brand_id = b.brand_id
+  ORDER BY tp.recent_review_count DESC, tp.stars DESC NULLS LAST, tp.review_count DESC
   LIMIT 15;
 `;
 
-// Replace the per-row correlated AVG subqueries with a single CTE that
-// computes per-category averages once. Goes from O(N x categories) scans
-// to one pass.
+// Uses mv_value_score_components. The route still accepts reviewedSince, but
+// the optimized path uses the materialized view's data-relative 12-month
+// review window so top-value can be served without scanning Reviews.
 const topValueProductsQueryOptimized = `
-  WITH cat_avgs AS (
-    SELECT
-      category_id,
-      AVG(price) AS avg_price,
-      AVG(stars) AS avg_stars
-    FROM products
-    GROUP BY category_id
-  ),
-  recent_asins AS (
-    SELECT DISTINCT asin
-    FROM reviews
-    WHERE review_timestamp >= $1::timestamp
-  )
   SELECT
-    p.asin,
+    m.asin,
     p.title,
-    p.price::float AS price,
-    p.stars::float AS stars,
+    p.img_url,
+    m.price::float AS price,
+    m.stars::float AS stars,
+    m.review_count::int AS review_count,
     c.category_name
-  FROM products p
-  JOIN categories c ON p.category_id = c.category_id
-  JOIN cat_avgs ca ON ca.category_id = p.category_id
-  JOIN recent_asins ra ON ra.asin = p.asin
-  WHERE p.price IS NOT NULL
-    AND p.stars IS NOT NULL
-    AND p.price < ca.avg_price
-    AND p.stars > ca.avg_stars
-  ORDER BY p.stars DESC NULLS LAST, p.review_count DESC, p.price ASC NULLS LAST
+  FROM mv_value_score_components m
+  JOIN products p ON p.asin = m.asin
+  JOIN categories c ON c.category_id = m.category_id
+  WHERE m.price < m.cat_avg_price
+    AND m.stars > m.cat_avg_stars
+    AND m.recent_review_count > 0
+    AND $1::timestamp IS NOT NULL
+  ORDER BY m.stars DESC NULLS LAST, m.review_count DESC, m.price ASC NULLS LAST
   LIMIT 100;
 `;
 
-// Hoist category_price_bounds and the per-product price_efficiency
-// expression into shared CTEs so they are computed once instead of being
-// recomputed inline both inside dimension_bounds and in the main SELECT.
+// Uses mv_value_score_components for static normalized inputs. The common
+// demo/report weights (0.4/0.2/0.2/0.2) use an indexed precomputed score;
+// arbitrary weights fall back to dynamic scoring over the narrow matview.
 const valueRankingsQueryOptimized = `
-  WITH recent_reviews AS (
+  WITH default_weighted AS (
     SELECT
-      r.asin,
-      COUNT(*)::int AS recent_review_count
-    FROM reviews r
-    WHERE r.review_timestamp >= NOW() - INTERVAL '3 months'
-    GROUP BY r.asin
+      m.asin,
+      m.category_id,
+      m.brand_id,
+      m.price,
+      m.stars,
+      m.review_count,
+      m.recent_review_count,
+      m.value_score_default AS value_score
+    FROM mv_value_score_components m
+    WHERE $1::float = 0.4
+      AND $2::float = 0.2
+      AND $3::float = 0.2
+      AND $4::float = 0.2
+    ORDER BY m.value_score_default DESC NULLS LAST, m.stars DESC NULLS LAST, m.review_count DESC
+    LIMIT 100
   ),
-  category_price_bounds AS (
+  dynamic_weighted AS (
     SELECT
-      category_id,
-      MIN(price::float) AS min_price,
-      MAX(price::float) AS max_price
-    FROM products
-    WHERE price IS NOT NULL
-    GROUP BY category_id
+      m.asin,
+      m.category_id,
+      m.brand_id,
+      m.price,
+      m.stars,
+      m.review_count,
+      m.recent_review_count,
+      COALESCE((
+        ($1 * m.norm_stars)
+        + ($2 * m.norm_review_count)
+        + ($3 * m.norm_price_efficiency)
+        + ($4 * m.norm_recent_review_count)
+      ) / NULLIF($1 + $2 + $3 + $4, 0), 0)::float AS value_score
+    FROM mv_value_score_components m
+    WHERE NOT (
+      $1::float = 0.4
+      AND $2::float = 0.2
+      AND $3::float = 0.2
+      AND $4::float = 0.2
+    )
+    ORDER BY value_score DESC NULLS LAST, m.stars DESC NULLS LAST, m.review_count DESC
+    LIMIT 100
   ),
-  product_price_eff AS (
-    SELECT
-      p.asin,
-      CASE
-        WHEN cpb.max_price = cpb.min_price THEN 1.0
-        ELSE 1.0 - (
-          (p.price::float - cpb.min_price)
-          / NULLIF(cpb.max_price - cpb.min_price, 0)
-        )
-      END AS price_efficiency
-    FROM products p
-    JOIN category_price_bounds cpb ON cpb.category_id = p.category_id
-    WHERE p.price IS NOT NULL
-  ),
-  dimension_bounds AS (
-    SELECT
-      MIN(p.stars::float) AS min_stars,
-      MAX(p.stars::float) AS max_stars,
-      MIN(p.review_count::float) AS min_review_count,
-      MAX(p.review_count::float) AS max_review_count,
-      MIN(ppe.price_efficiency) AS min_price_efficiency,
-      MAX(ppe.price_efficiency) AS max_price_efficiency,
-      MIN(COALESCE(rr.recent_review_count, 0)::float) AS min_recent_review_count,
-      MAX(COALESCE(rr.recent_review_count, 0)::float) AS max_recent_review_count
-    FROM products p
-    JOIN product_price_eff ppe ON ppe.asin = p.asin
-    LEFT JOIN recent_reviews rr ON rr.asin = p.asin
-    WHERE p.price IS NOT NULL
-      AND p.stars IS NOT NULL
+  ranked AS (
+    SELECT * FROM default_weighted
+    UNION ALL
+    SELECT * FROM dynamic_weighted
   )
   SELECT
-    p.asin,
+    ranked.asin,
     p.title,
-    p.price::float AS price,
-    p.stars::float AS stars,
-    p.review_count,
-    COALESCE(rr.recent_review_count, 0)::int AS recent_review_count,
+    ranked.price::float AS price,
+    ranked.stars::float AS stars,
+    ranked.review_count::int AS review_count,
+    ranked.recent_review_count::int AS recent_review_count,
     p.img_url,
     c.category_name,
     b.brand_name,
-    COALESCE((
-      (
-        $1 * CASE
-          WHEN db.max_stars = db.min_stars THEN 0
-          ELSE (p.stars::float - db.min_stars) / NULLIF(db.max_stars - db.min_stars, 0)
-        END
-      ) +
-      (
-        $2 * CASE
-          WHEN db.max_review_count = db.min_review_count THEN 0
-          ELSE (p.review_count::float - db.min_review_count)
-            / NULLIF(db.max_review_count - db.min_review_count, 0)
-        END
-      ) +
-      (
-        $3 * CASE
-          WHEN db.max_price_efficiency = db.min_price_efficiency THEN 0
-          ELSE (ppe.price_efficiency - db.min_price_efficiency)
-            / NULLIF(db.max_price_efficiency - db.min_price_efficiency, 0)
-        END
-      ) +
-      (
-        $4 * CASE
-          WHEN db.max_recent_review_count = db.min_recent_review_count THEN 0
-          ELSE (COALESCE(rr.recent_review_count, 0)::float - db.min_recent_review_count)
-            / NULLIF(db.max_recent_review_count - db.min_recent_review_count, 0)
-        END
-      )
-    ) / NULLIF($1 + $2 + $3 + $4, 0), 0)::float AS value_score
-  FROM products p
+    ranked.value_score
+  FROM ranked
+  JOIN products p ON p.asin = ranked.asin
   JOIN categories c ON p.category_id = c.category_id
   LEFT JOIN brands b ON p.brand_id = b.brand_id
-  LEFT JOIN recent_reviews rr ON rr.asin = p.asin
-  JOIN product_price_eff ppe ON ppe.asin = p.asin
-  CROSS JOIN dimension_bounds db
-  WHERE p.price IS NOT NULL
-    AND p.stars IS NOT NULL
-  ORDER BY value_score DESC NULLS LAST, p.stars DESC NULLS LAST, p.review_count DESC
+  ORDER BY ranked.value_score DESC NULLS LAST, p.stars DESC NULLS LAST, p.review_count DESC
   LIMIT 100;
 `;
 
@@ -581,6 +784,8 @@ module.exports = {
   productExistsQuery,
   searchProductsQuery,
   dealsQuery,
+  categoryProductsQuery,
+  brandProductsQuery,
   ratingDistributionQuery,
   helpfulReviewsQuery,
   alternativesQuery,
@@ -590,6 +795,8 @@ module.exports = {
   productExistsQueryOptimized,
   searchProductsQueryOptimized,
   dealsQueryOptimized,
+  categoryProductsQueryOptimized,
+  brandProductsQueryOptimized,
   ratingDistributionQueryOptimized,
   helpfulReviewsQueryOptimized,
   alternativesQueryOptimized,

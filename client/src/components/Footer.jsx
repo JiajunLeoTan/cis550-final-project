@@ -1,14 +1,19 @@
+import QueryModeToggle from './QueryModeToggle.jsx';
+
 export default function Footer() {
   return (
     <footer className="site-footer">
-      <div className="container">
+      <div className="container footer-inner">
         <div>
-          <strong style={{ color: 'var(--ink)', fontFamily: 'var(--font-display)' }}>
-            Axiom
-          </strong>{' '}
-          · Product intelligence over 1.4M items
+          <span className="footer-brand">Axiom</span> · Product research over 1.4M items
         </div>
-        <div>CIS 550 · Milestone 4 · Data served from AWS RDS</div>
+        <div className="footer-right">
+          <span>CIS 550 · Data served from AWS RDS</span>
+          <div className="query-toggle-wrap">
+            <span className="query-toggle-label">SQL mode:</span>
+            <QueryModeToggle />
+          </div>
+        </div>
       </div>
     </footer>
   );
