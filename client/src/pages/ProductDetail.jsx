@@ -239,7 +239,9 @@ export default function ProductDetail() {
       </section>
 
       <section>
-        <h2 className="section-title">Cheaper, higher-rated alternatives</h2>
+        <header className="section-header">
+          <h2 className="section-title">Cheaper, higher-rated alternatives</h2>
+        </header>
         {altLoading ? (
           <div className="grid grid-4">
             {Array.from({ length: 4 }).map((_, i) => (

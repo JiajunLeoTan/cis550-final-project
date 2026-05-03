@@ -189,14 +189,12 @@ export default function BrandPage() {
       </section>
 
       <section>
-        <div className="row between" style={{ alignItems: 'baseline', marginBottom: 'var(--s-5)' }}>
-          <h2 className="section-title" style={{ margin: 0 }}>
-            Products
-          </h2>
-          <span className="meta-line">
-            Showing {items.length} loaded
-          </span>
-        </div>
+        <header className="section-header">
+          <h2 className="section-title">Products</h2>
+          <div className="section-actions">
+            <span className="meta-line">Showing {items.length} loaded</span>
+          </div>
+        </header>
 
         {error && <ErrorBanner error={error} />}
         {loading && items.length === 0 ? (

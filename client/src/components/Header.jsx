@@ -31,7 +31,8 @@ export default function Header() {
             className={({ isActive }) => `nav-cart${isActive ? ' active' : ''}`}
             aria-label={`Cart with ${count} items`}
           >
-            Cart ({count})
+            Cart
+            {count > 0 && <span className="nav-cart-count">{count}</span>}
           </NavLink>
         </nav>
       </div>

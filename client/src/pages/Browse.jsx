@@ -249,23 +249,23 @@ export default function Browse() {
 
       {isSearching ? (
         <section>
-          <div className="row between" style={{ alignItems: 'baseline', marginBottom: 'var(--s-4)' }}>
-            <h2 className="section-title" style={{ margin: 0 }}>
-              Search results
-            </h2>
-            <button
-              className="text-button"
-              onClick={() => {
-                setKeyword('');
-                navigate('/browse', { replace: true });
-              }}
-            >
-              Clear search
-            </button>
-          </div>
-          <div className="meta-line" style={{ marginBottom: 'var(--s-5)' }}>
-            Showing {products.length} result{products.length === 1 ? '' : 's'}
-          </div>
+          <header className="section-header">
+            <h2 className="section-title">Search results</h2>
+            <div className="section-actions">
+              <span className="meta-line">
+                Showing {products.length} result{products.length === 1 ? '' : 's'}
+              </span>
+              <button
+                className="text-button"
+                onClick={() => {
+                  setKeyword('');
+                  navigate('/browse', { replace: true });
+                }}
+              >
+                Clear search
+              </button>
+            </div>
+          </header>
           {productsError && <ErrorBanner error={productsError} />}
           {productsLoading && products.length === 0 ? (
             <SkeletonGrid count={8} />
@@ -280,14 +280,14 @@ export default function Browse() {
         </section>
       ) : (
         <section>
-          <div className="row between" style={{ alignItems: 'baseline', marginBottom: 'var(--s-5)' }}>
-            <h2 className="section-title" style={{ margin: 0 }}>
-              Shop by category
-            </h2>
-            <span className="meta-line">
-              Showing {visibleCategories.length} of {categoryRows.length}
-            </span>
-          </div>
+          <header className="section-header">
+            <h2 className="section-title">Shop by category</h2>
+            <div className="section-actions">
+              <span className="meta-line">
+                Showing {visibleCategories.length} of {categoryRows.length}
+              </span>
+            </div>
+          </header>
 
           {categoriesError && <ErrorBanner error={categoriesError} />}
           {categoriesLoading && visibleCategories.length === 0 ? (

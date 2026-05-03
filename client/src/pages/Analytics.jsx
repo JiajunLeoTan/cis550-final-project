@@ -118,19 +118,21 @@ export default function Analytics() {
 
   return (
     <div className="container stack-lg">
-      <header>
-        <h1 className="page-title">Analytics</h1>
+      <header style={{ paddingTop: 'var(--s-8)' }}>
+        <span className="kicker">Statistics &amp; charts &middot; Issue 01</span>
+        <h1 className="page-title">Analytics.</h1>
         <p className="lead">
           Category, brand, and review trends from the product corpus, shown as compact
           comparisons rather than dashboard decoration.
         </p>
       </header>
 
-      <section className="card analytics-card">
-        <div className="card-body">
-          <div className="analytics-card-header">
-            <h2 className="card-title">Categories compared</h2>
-            <div className="tab-row analytics-controls" role="tablist" aria-label="Category metric">
+      <section>
+        <header className="section-header">
+          <span className="section-num">01</span>
+          <h2 className="section-title">Categories compared</h2>
+          <div className="section-actions">
+            <div className="tab-row" role="tablist" aria-label="Category metric">
               {Object.entries(metricMeta).map(([k, v]) => (
                 <button
                   key={k}
@@ -142,66 +144,59 @@ export default function Analytics() {
               ))}
             </div>
           </div>
+        </header>
 
-          {compareError && <ErrorBanner error={compareError} />}
-          {compareLoading ? (
-            <div className="skeleton" style={{ height: 320 }} />
-          ) : categoryChartData.length === 0 ? (
-            <Empty title="No data for this metric." />
-          ) : (
-            <>
-              <HorizontalBars
-                data={categoryChartData}
-                valueFormat={metricMeta[metric].format}
-                height={320}
-                maxLabelChars={24}
-                getHref={(d) => `/category/${encodeURIComponent(d.label)}`}
-                onSelect={(d) => navigate(`/category/${encodeURIComponent(d.label)}`)}
-              />
-              <p className="chart-caption">
-                Top 12 categories by the selected metric. Hover is not required; values are printed beside each bar.
-              </p>
-            </>
-          )}
-        </div>
-      </section>
-
-      <section className="card analytics-card">
-        <div className="card-body">
-          <div className="analytics-card-header">
-            <h2 className="card-title">Brand leaderboard</h2>
-          </div>
-
-          {brandsError && <ErrorBanner error={brandsError} />}
-          {brandsLoading ? (
-            <div className="skeleton" style={{ height: 420 }} />
-          ) : brandRows.length === 0 ? (
-            <Empty
-              title="No qualifying brands yet."
-              description="Brand performance requires verified review coverage; the current dataset is sparse."
+        {compareError && <ErrorBanner error={compareError} />}
+        {compareLoading ? (
+          <div className="skeleton" style={{ height: 320 }} />
+        ) : categoryChartData.length === 0 ? (
+          <Empty title="No data for this metric." />
+        ) : (
+          <>
+            <HorizontalBars
+              data={categoryChartData}
+              valueFormat={metricMeta[metric].format}
+              height={320}
+              maxLabelChars={24}
+              getHref={(d) => `/category/${encodeURIComponent(d.label)}`}
+              onSelect={(d) => navigate(`/category/${encodeURIComponent(d.label)}`)}
             />
-          ) : (
-            <>
-              <BrandLeaderboard rows={brandRows} />
-              <p className="chart-caption">
-                Ranked by verified review score, then review sample size and helpful votes.
-              </p>
-            </>
-          )}
-        </div>
+            <p className="chart-caption">
+              Top 12 categories by the selected metric. Values are printed beside each bar.
+            </p>
+          </>
+        )}
       </section>
 
-      <section className="card analytics-card">
-        <div className="card-body">
-          <div className="analytics-card-header">
-            <div className="analytics-card-heading">
-              <h2 className="card-title">Are verified-buyer ratings different from unverified ones?</h2>
-              <p className="analytics-subtitle">
-                Monthly average star rating for {category || 'the selected category'}, split by whether the
-                reviewer purchased the item. Verified buyers tend to be a more reliable signal, so a wider
-                gap means unverified ratings are skewing the overall stars up or down.
-              </p>
-            </div>
+      <section>
+        <header className="section-header">
+          <span className="section-num">02</span>
+          <h2 className="section-title">Brand leaderboard</h2>
+        </header>
+
+        {brandsError && <ErrorBanner error={brandsError} />}
+        {brandsLoading ? (
+          <div className="skeleton" style={{ height: 420 }} />
+        ) : brandRows.length === 0 ? (
+          <Empty
+            title="No qualifying brands yet."
+            description="Brand performance requires verified review coverage; the current dataset is sparse."
+          />
+        ) : (
+          <>
+            <BrandLeaderboard rows={brandRows} />
+            <p className="chart-caption">
+              Ranked by verified review score, then review sample size and helpful votes.
+            </p>
+          </>
+        )}
+      </section>
+
+      <section>
+        <header className="section-header">
+          <span className="section-num">03</span>
+          <h2 className="section-title">Verified vs unverified ratings</h2>
+          <div className="section-actions">
             <select
               className="select analytics-select"
               value={category}
@@ -215,99 +210,102 @@ export default function Analytics() {
               ))}
             </select>
           </div>
+        </header>
 
-          {trendLoading ? (
-            <div className="skeleton" style={{ height: 320 }} />
-          ) : (trend || []).length === 0 ? (
-            <Empty
-              title="No review timeline for this category."
-              description="The loaded review corpus is smaller than expected, so some categories have no monthly signal."
+        <p className="section-deck">
+          Monthly average star rating for {category || 'the selected category'}, split by whether the
+          reviewer purchased the item. Verified buyers are a more reliable signal, so a wider gap
+          means unverified ratings are skewing the overall stars up or down.
+        </p>
+
+        {trendLoading ? (
+          <div className="skeleton" style={{ height: 320 }} />
+        ) : (trend || []).length === 0 ? (
+          <Empty
+            title="No review timeline for this category."
+            description="The loaded review corpus is smaller than expected, so some categories have no monthly signal."
+          />
+        ) : (
+          <>
+            {trendSummary && (
+              <dl className="stat-row">
+                <div className="stat">
+                  <dt>Reviews</dt>
+                  <dd>{formatCount(trendSummary.total)}</dd>
+                </div>
+                <div className="stat">
+                  <dt>Verified avg</dt>
+                  <dd>
+                    {trendSummary.verifiedAvg != null
+                      ? `${trendSummary.verifiedAvg.toFixed(2)} ★`
+                      : '—'}
+                    <span className="stat-sub">
+                      {trendSummary.verifiedW > 0
+                        ? `${formatCount(trendSummary.verifiedW)} reviews`
+                        : 'no data'}
+                    </span>
+                  </dd>
+                </div>
+                <div className="stat">
+                  <dt>Unverified avg</dt>
+                  <dd>
+                    {trendSummary.unverifiedAvg != null
+                      ? `${trendSummary.unverifiedAvg.toFixed(2)} ★`
+                      : '—'}
+                    <span className="stat-sub">
+                      {trendSummary.unverifiedW > 0
+                        ? `${formatCount(trendSummary.unverifiedW)} reviews`
+                        : 'no data'}
+                    </span>
+                  </dd>
+                </div>
+                <div className="stat">
+                  <dt>Gap</dt>
+                  <dd>
+                    {trendSummary.gap != null
+                      ? `${trendSummary.gap > 0 ? '+' : ''}${trendSummary.gap.toFixed(2)} ★`
+                      : '—'}
+                    <span className="stat-sub">verified − unverified</span>
+                  </dd>
+                </div>
+              </dl>
+            )}
+
+            <LineChart
+              xLabels={trendChart.xLabels}
+              xValues={trendChart.xValues}
+              volumes={trendChart.volume}
+              yLabel="Avg star rating"
+              volumeLabel="Reviews / month"
+              series={[
+                {
+                  label: 'Overall avg',
+                  color: 'var(--ink)',
+                  values: trendChart.overall
+                },
+                {
+                  label: 'Verified buyers',
+                  color: 'var(--accent)',
+                  values: trendChart.high
+                },
+                {
+                  label: 'Unverified',
+                  color: 'var(--ink-3)',
+                  values: trendChart.low,
+                  dashed: true
+                }
+              ]}
+              valueFormat={(v) => Number(v).toFixed(1)}
+              yDomain={[1, 5]}
+              height={280}
             />
-          ) : (
-            <>
-              {trendSummary && (
-                <dl className="analytics-summary">
-                  <div className="analytics-summary-tile">
-                    <dt>Reviews</dt>
-                    <dd>{formatCount(trendSummary.total)}</dd>
-                  </div>
-                  <div className="analytics-summary-tile">
-                    <dt>Verified avg</dt>
-                    <dd>
-                      {trendSummary.verifiedAvg != null
-                        ? `${trendSummary.verifiedAvg.toFixed(2)} ★`
-                        : '—'}
-                      <span className="analytics-summary-sub">
-                        {trendSummary.verifiedW > 0
-                          ? `${formatCount(trendSummary.verifiedW)} reviews`
-                          : 'no data'}
-                      </span>
-                    </dd>
-                  </div>
-                  <div className="analytics-summary-tile">
-                    <dt>Unverified avg</dt>
-                    <dd>
-                      {trendSummary.unverifiedAvg != null
-                        ? `${trendSummary.unverifiedAvg.toFixed(2)} ★`
-                        : '—'}
-                      <span className="analytics-summary-sub">
-                        {trendSummary.unverifiedW > 0
-                          ? `${formatCount(trendSummary.unverifiedW)} reviews`
-                          : 'no data'}
-                      </span>
-                    </dd>
-                  </div>
-                  <div className="analytics-summary-tile">
-                    <dt>Gap</dt>
-                    <dd>
-                      {trendSummary.gap != null
-                        ? `${trendSummary.gap > 0 ? '+' : ''}${trendSummary.gap.toFixed(2)} ★`
-                        : '—'}
-                      <span className="analytics-summary-sub">
-                        verified − unverified
-                      </span>
-                    </dd>
-                  </div>
-                </dl>
-              )}
-
-              <LineChart
-                xLabels={trendChart.xLabels}
-                xValues={trendChart.xValues}
-                volumes={trendChart.volume}
-                yLabel="Avg star rating"
-                volumeLabel="Reviews / month"
-                series={[
-                  {
-                    label: 'Overall avg',
-                    color: 'var(--ink)',
-                    values: trendChart.overall
-                  },
-                  {
-                    label: 'Verified buyers',
-                    color: 'var(--accent)',
-                    values: trendChart.high
-                  },
-                  {
-                    label: 'Unverified',
-                    color: 'var(--ink-3)',
-                    values: trendChart.low,
-                    dashed: true
-                  }
-                ]}
-                valueFormat={(v) => Number(v).toFixed(1)}
-                yDomain={[1, 5]}
-                height={280}
-              />
-              <p className="chart-caption">
-                A wider gap between the verified and unverified lines means unverified reviewers are
-                rating differently from people who actually bought the item — useful context when
-                reading any single product&rsquo;s stars. The bars below show how many reviews each
-                month is based on; tall bars are higher-confidence months.
-              </p>
-            </>
-          )}
-        </div>
+            <p className="chart-caption">
+              A wider gap between the verified and unverified lines means unverified reviewers are
+              rating differently from people who actually bought the item. The bars below show how many
+              reviews each month is based on; tall bars are higher-confidence months.
+            </p>
+          </>
+        )}
       </section>
     </div>
   );

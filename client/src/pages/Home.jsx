@@ -32,6 +32,7 @@ export default function Home() {
     <>
       <section className="container" style={{ paddingTop: 'var(--s-8)' }}>
         <div style={{ maxWidth: 820 }}>
+          <span className="kicker">A catalog of beauty &middot; Issue 01</span>
           <h1 className="page-title">A reading room for 1.4 million products.</h1>
           <p className="lead">
             Search the catalog, compare categories, and rank products by the weights
@@ -62,7 +63,7 @@ export default function Home() {
         <div className="inline-prose">
           <p>
             Start with <Link to="/browse">Browse</Link> to search by keyword and
-            rating, or jump straight to <Link to="/browse#deals">deals</Link>.
+            rating, or jump straight to <Link to="/deals">deals</Link>.
             <Link to="/analytics"> Analytics</Link> shows how categories and brands
             compare across the corpus.
           </p>
@@ -75,7 +76,10 @@ export default function Home() {
       </section>
 
       <section className="container section">
-        <h2 className="section-title">Proven picks</h2>
+        <header className="section-header">
+          <span className="section-num">01</span>
+          <h2 className="section-title">Proven picks</h2>
+        </header>
         {provenLoading ? (
           <SkeletonGrid count={4} />
         ) : provenPicks.length === 0 ? (
@@ -99,7 +103,10 @@ export default function Home() {
       </section>
 
       <section className="container section">
-        <h2 className="section-title">Under $120</h2>
+        <header className="section-header">
+          <span className="section-num">02</span>
+          <h2 className="section-title">Under $120</h2>
+        </header>
         {dealsLoading ? (
           <SkeletonGrid count={4} />
         ) : featured.length === 0 ? (
@@ -120,7 +127,7 @@ export default function Home() {
               ))}
             </div>
             <div style={{ marginTop: 'var(--s-4)' }}>
-              <Link to="/browse#deals" className="text-link">
+              <Link to="/deals" className="text-link">
                 More deals
               </Link>
             </div>

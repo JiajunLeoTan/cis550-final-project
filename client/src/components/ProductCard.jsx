@@ -2,13 +2,9 @@ import { Link } from 'react-router-dom';
 import Rating from './Rating.jsx';
 import { formatCurrency } from '../utils/format.js';
 
-function initials(title = '') {
-  return title
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? '')
-    .join('');
+function monogram(title = '') {
+  const first = title.trim().split(/\s+/).filter(Boolean)[0] || '';
+  return (first[0] || '').toUpperCase() + (first[1] || '').toLowerCase();
 }
 
 export default function ProductCard({ product, badge }) {
@@ -28,24 +24,25 @@ export default function ProductCard({ product, badge }) {
 
   const meta = [brand_name, category_name].filter(Boolean).join(' · ');
   const showBadge = badge ?? (is_best_seller ? { label: 'Best seller' } : null);
-  const badgeClass =
-    showBadge?.tone === 'positive' || showBadge?.tone === 'discount'
-      ? 'product-badge product-badge--positive'
-      : 'product-badge';
+  const isPriceTag =
+    showBadge && (showBadge.tone === 'positive' || showBadge.tone === 'discount');
 
   return (
     <Link to={`/product/${encodeURIComponent(asin)}`} className="card card-hover product-card">
       <div className="product-media">
+        {isPriceTag && <span className="product-discount-tag">{showBadge.label}</span>}
         {img_url ? (
           <img src={img_url} alt="" loading="lazy" />
         ) : (
-          <span>{initials(title)}</span>
+          <span className="product-monogram">{monogram(title)}</span>
         )}
       </div>
       <div className="product-card-body">
         {meta && <div className="product-meta-line">{meta}</div>}
+        {showBadge && !isPriceTag && (
+          <div className="product-eyebrow">{showBadge.label}</div>
+        )}
         <div className="product-title">{title || 'Untitled product'}</div>
-        {showBadge && <div className={badgeClass}>{showBadge.label}</div>}
         <div className="product-meta">
           <div>
             <span className="price price--sm">{formatCurrency(price)}</span>

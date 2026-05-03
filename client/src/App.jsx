@@ -3,6 +3,7 @@ import Header from './components/Header.jsx';
 import Footer from './components/Footer.jsx';
 import Home from './pages/Home.jsx';
 import Browse from './pages/Browse.jsx';
+import Deals from './pages/Deals.jsx';
 import CategoryPage from './pages/CategoryPage.jsx';
 import BrandPage from './pages/BrandPage.jsx';
 import ProductDetail from './pages/ProductDetail.jsx';
@@ -19,6 +20,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/browse" element={<Browse />} />
+          <Route path="/deals" element={<Deals />} />
           <Route path="/category/:categoryName" element={<CategoryPage />} />
           <Route path="/brand/:brandName" element={<BrandPage />} />
           <Route path="/product/:asin" element={<ProductDetail />} />
