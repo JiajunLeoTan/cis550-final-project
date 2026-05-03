@@ -188,8 +188,7 @@ Recommended deployment split:
   cleaned CSVs loaded through the data pipeline.
 
 ## Group Members
-
-Chenguang Shen
-Luis Garcia
-Leo Tan
-Anika Madan
+- Chenguang Shen
+- Luis Garcia
+- Leo Tan
+- Anika Madan
