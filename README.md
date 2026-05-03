@@ -189,4 +189,7 @@ Recommended deployment split:
 
 ## Group Members
 
-Add group member names before submission.
+Chenguang Shen
+Luis Garcia
+Leo Tan
+Anika Madan
