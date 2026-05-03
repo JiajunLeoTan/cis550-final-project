@@ -22,6 +22,9 @@ yarn-error.log*
 /client/build/
 /client/dist/
 
+# Test coverage output
+coverage/
+
 # Environment and secrets
 .env
 .env.local
