@@ -23,6 +23,17 @@ brand-level analytics. The project emphasizes a normalized relational design,
 clear API contracts, and a visible original-versus-optimized query mode exposed
 through the \texttt{?optimized=1} flag.
 
+\subsection{Problem Statement}
+In the modern e-commerce landscape, consumers are frequently overwhelmed by information overload. With datasets reaching millions of products and reviews, users struggle to cross-reference price volatility, brand reputation, and sentiment signals effectively. Existing platforms often lack the analytical tools necessary to consolidate these fragmented data points, preventing shoppers from identifying true market value or comparing brand performance across high-volume categories.
+
+\subsection{Project Goal}
+The goal of Axiom is to develop a high-performance, full-stack shopping to provide:
+\begin{itemize}
+    \item \textbf{High-Efficiency Discovery:} Real-time search and filtering across millions of rows using optimized indexing.
+    \item \textbf{Analytical Insights:} Comparative brand and category metrics visualized through custom data structures.
+    \item \textbf{Personalized Utility:} A customizable value-ranking engine that allows users to weight product attributes (price, stars, and recency) according to their specific priorities.
+\end{itemize}
+
 \section{Architecture}
 The system has three layers. The frontend is a React/Vite single-page
 application with pages for home, browsing, product detail, cart, analytics, and
