@@ -4,8 +4,8 @@ module.exports = defineConfig({
   test: {
     globals: false,
     environment: 'node',
-    setupFiles: ['./tests/setup.js'],
-    include: ['tests/**/*.test.js'],
+    setupFiles: ['./server/tests/setup.js'],
+    include: ['server/tests/**/*.test.js'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json-summary'],
@@ -13,7 +13,8 @@ module.exports = defineConfig({
       exclude: [
         'server/index.js',
         'server/db.js',
-        'server/queries/**'
+        'server/queries/**',
+        'server/tests/**'
       ],
       thresholds: {
         lines: 80,

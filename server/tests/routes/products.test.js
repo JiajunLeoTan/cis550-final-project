@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
-import pool from '../../server/db.js';
-import app from '../../server/index.js';
+import pool from '../../db.js';
+import app from '../../index.js';
 
 const VALID_ASIN = 'B0719KWG8H';
 

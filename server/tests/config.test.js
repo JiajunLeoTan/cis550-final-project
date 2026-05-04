@@ -40,7 +40,7 @@ describe('config', () => {
 
   it('exposes db credentials and a numeric port', async () => {
     process.env.PORT = '4123';
-    const config = (await import('../server/config.js')).default;
+    const config = (await import('../config.js')).default;
 
     expect(config.port).toBe(4123);
     expect(config.db).toMatchObject({
@@ -55,18 +55,18 @@ describe('config', () => {
 
   it('falls back to default PORT when unset', async () => {
     process.env.PORT = '';
-    const config = (await import('../server/config.js')).default;
+    const config = (await import('../config.js')).default;
 
     expect(config.port).toBe(8080);
   });
 
   it('throws when a required env var is missing', async () => {
     process.env.DB_HOST = '';
-    await expect(import('../server/config.js')).rejects.toThrow(/DB_HOST/);
+    await expect(import('../config.js')).rejects.toThrow(/DB_HOST/);
   });
 
   it('throws when an integer env var is malformed', async () => {
     process.env.DB_PORT = 'not-a-number';
-    await expect(import('../server/config.js')).rejects.toThrow(/Invalid integer for DB_PORT/);
+    await expect(import('../config.js')).rejects.toThrow(/Invalid integer for DB_PORT/);
   });
 });

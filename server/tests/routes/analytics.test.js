@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
-import pool from '../../server/db.js';
-import app from '../../server/index.js';
-import { clearCache } from '../../server/cache.js';
+import pool from '../../db.js';
+import app from '../../index.js';
+import { clearCache } from '../../cache.js';
 
 beforeEach(() => {
   pool.query = vi.fn().mockResolvedValue({ rows: [], rowCount: 0 });
