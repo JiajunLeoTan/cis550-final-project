@@ -10,6 +10,7 @@ const {
   helpfulReviewsQuery,
   alternativesQuery,
   trendingProductsQuery,
+  trendingProductsDefaultQuery,
   topValueProductsQuery,
   valueRankingsQuery,
   productExistsQueryOptimized,
@@ -408,9 +409,21 @@ router.get('/products/trending', async (req, res, next) => {
   }
 
   try {
-    const useOptimizedSql = isOptimized(req) && !hasExplicitMonths;
-    const sql = useOptimizedSql ? trendingProductsQueryOptimized : trendingProductsQuery;
-    const { rows } = await pool.query(sql, [category, months]);
+    let sql;
+    let params;
+
+    if (hasExplicitMonths) {
+      sql = trendingProductsQuery;
+      params = [category, months];
+    } else if (isOptimized(req)) {
+      sql = trendingProductsQueryOptimized;
+      params = [category];
+    } else {
+      sql = trendingProductsDefaultQuery;
+      params = [category];
+    }
+
+    const { rows } = await pool.query(sql, params);
     return res.json(rows);
   } catch (err) {
     return next(err);

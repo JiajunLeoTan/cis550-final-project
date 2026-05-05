@@ -23,7 +23,40 @@ const trendingProductsQuery = `
     GROUP BY asin
   ) r ON r.asin = p.asin
   WHERE c.category_name = $1
-  ORDER BY recent_review_count DESC, p.stars DESC NULLS LAST, p.review_count DESC
+  ORDER BY recent_review_count DESC, p.stars DESC NULLS LAST, p.review_count DESC, p.asin ASC
+  LIMIT 15;
+`;
+
+const trendingProductsDefaultQuery = `
+  WITH review_horizon AS (
+    SELECT COALESCE(MAX(review_timestamp), NOW()) - INTERVAL '12 months' AS start_at
+    FROM reviews
+  ),
+  recent_reviews AS (
+    SELECT
+      r.asin,
+      COUNT(*)::int AS recent_count
+    FROM reviews r
+    CROSS JOIN review_horizon h
+    WHERE r.review_timestamp >= h.start_at
+    GROUP BY r.asin
+  )
+  SELECT
+    p.asin,
+    p.title,
+    p.img_url,
+    p.price::float AS price,
+    p.stars::float AS stars,
+    p.review_count,
+    COALESCE(r.recent_count, 0) AS recent_review_count,
+    p.is_best_seller,
+    b.brand_name
+  FROM products p
+  JOIN categories c ON p.category_id = c.category_id
+  LEFT JOIN brands b ON p.brand_id = b.brand_id
+  LEFT JOIN recent_reviews r ON r.asin = p.asin
+  WHERE c.category_name = $1
+  ORDER BY recent_review_count DESC, p.stars DESC NULLS LAST, p.review_count DESC, p.asin ASC
   LIMIT 15;
 `;
 
@@ -41,8 +74,7 @@ const trendingProductsQueryOptimized = `
     FROM categories c
     JOIN mv_value_score_components m ON m.category_id = c.category_id
     WHERE c.category_name = $1
-      AND $2::int IS NOT NULL
-    ORDER BY m.recent_review_count DESC, m.stars DESC NULLS LAST, m.review_count DESC
+    ORDER BY m.recent_review_count DESC, m.stars DESC NULLS LAST, m.review_count DESC, m.asin ASC
     LIMIT 15
   )
   SELECT
@@ -58,11 +90,12 @@ const trendingProductsQueryOptimized = `
   FROM top_products tp
   JOIN products p ON p.asin = tp.asin
   LEFT JOIN brands b ON tp.brand_id = b.brand_id
-  ORDER BY tp.recent_review_count DESC, tp.stars DESC NULLS LAST, tp.review_count DESC
+  ORDER BY tp.recent_review_count DESC, tp.stars DESC NULLS LAST, tp.review_count DESC, tp.asin ASC
   LIMIT 15;
 `;
 
 module.exports = {
   trendingProductsQuery,
+  trendingProductsDefaultQuery,
   trendingProductsQueryOptimized
 };

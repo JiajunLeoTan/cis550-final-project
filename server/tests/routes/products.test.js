@@ -4,6 +4,7 @@ import pool from '../../db.js';
 import app from '../../index.js';
 import {
   topValueProductsQueryOptimized,
+  trendingProductsDefaultQuery,
   trendingProductsQuery,
   trendingProductsQueryOptimized
 } from '../../queries/products/index.js';
@@ -284,13 +285,14 @@ describe('GET /products/trending', () => {
     expect(res.body).toEqual({ error: 'missing required param: category' });
   });
 
-  it('returns trending rows with the default months window', async () => {
+  it('uses the live dataset-relative default query when months is omitted', async () => {
     pool.query.mockResolvedValueOnce({ rows: [{ asin: VALID_ASIN }] });
     const res = await request(app).get(
       `/products/trending?category=${encodeURIComponent('Hair Care')}`
     );
     expect(res.status).toBe(200);
-    expect(pool.query.mock.calls[0][1]).toEqual(['Hair Care', 3]);
+    expect(pool.query.mock.calls[0][0]).toBe(trendingProductsDefaultQuery);
+    expect(pool.query.mock.calls[0][1]).toEqual(['Hair Care']);
   });
 
   it('honors a custom months window in the optimized branch', async () => {
@@ -304,7 +306,7 @@ describe('GET /products/trending', () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
     await request(app).get('/products/trending?category=Beauty&optimized=1');
     expect(pool.query.mock.calls[0][0]).toBe(trendingProductsQueryOptimized);
-    expect(pool.query.mock.calls[0][1]).toEqual(['Beauty', 3]);
+    expect(pool.query.mock.calls[0][1]).toEqual(['Beauty']);
   });
 
   it('rejects non-integer months', async () => {

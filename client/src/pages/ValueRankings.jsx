@@ -17,7 +17,11 @@ const WEIGHT_META = [
   { key: 'wRating', label: 'Rating strength', description: 'Weight on 1-5 star score.' },
   { key: 'wReviews', label: 'Review depth', description: 'Weight on total review volume.' },
   { key: 'wPriceEff', label: 'Price efficiency', description: 'Weight on cheapness within category.' },
-  { key: 'wRecent', label: 'Recent activity', description: 'Weight on reviews in the last 3 months.' }
+  {
+    key: 'wRecent',
+    label: 'Recent activity',
+    description: 'Weight on reviews in the latest 12-month dataset window.'
+  }
 ];
 
 function useDebounced(value, delay = 400) {
@@ -50,7 +54,7 @@ export default function ValueRankings() {
         <h1 className="page-title">Value rankings</h1>
         <p className="lead">
           We normalize each dimension to 0-1 per product, scale by your weights, and
-          re-rank the whole catalog live.
+          re-rank the whole catalog.
         </p>
       </header>
 

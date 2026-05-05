@@ -18,6 +18,7 @@ const {
   helpfulReviewsQuery,
   alternativesQuery,
   trendingProductsQuery,
+  trendingProductsDefaultQuery,
   topValueProductsQuery,
   valueRankingsQuery,
   searchProductsQueryOptimized,
@@ -270,10 +271,10 @@ function buildBenchmarks(input) {
     },
     {
       query: 'GET /products/trending',
-      input: `category=${input.category}, months=${input.months}`,
-      preSql: trendingProductsQuery,
+      input: `category=${input.category}, default dataset window`,
+      preSql: trendingProductsDefaultQuery,
       postSql: trendingProductsQueryOptimized,
-      params: [input.category, input.months]
+      params: [input.category]
     },
     {
       query: 'GET /products/top-value',

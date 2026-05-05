@@ -33,18 +33,23 @@ const topValueProductsQuery = `
       WHERE r.asin = p.asin
         AND r.review_timestamp >= $1::timestamp
     )
-  ORDER BY p.stars DESC NULLS LAST, p.review_count DESC, p.price ASC NULLS LAST
+  ORDER BY p.stars DESC NULLS LAST, p.review_count DESC, p.price ASC NULLS LAST, p.asin ASC
   LIMIT 100;
 `;
 
 const valueRankingsQuery = `
   -- Intentionally duplicates expensive scans so the optimization pass has a meaningful baseline.
-  WITH recent_reviews AS (
+  WITH review_horizon AS (
+    SELECT COALESCE(MAX(review_timestamp), NOW()) - INTERVAL '12 months' AS start_at
+    FROM reviews
+  ),
+  recent_reviews AS (
     SELECT
       r.asin,
       COUNT(*)::int AS recent_review_count
     FROM reviews r
-    WHERE r.review_timestamp >= NOW() - INTERVAL '3 months'
+    CROSS JOIN review_horizon h
+    WHERE r.review_timestamp >= h.start_at
     GROUP BY r.asin
   ),
   dimension_bounds AS (
@@ -82,6 +87,7 @@ const valueRankingsQuery = `
         MAX(price::float) AS max_price
       FROM products
       WHERE price IS NOT NULL
+        AND stars IS NOT NULL
       GROUP BY category_id
     ) category_price_bounds ON category_price_bounds.category_id = p.category_id
     WHERE p.price IS NOT NULL
@@ -146,12 +152,13 @@ const valueRankingsQuery = `
       MAX(price::float) AS max_price
     FROM products
     WHERE price IS NOT NULL
+      AND stars IS NOT NULL
     GROUP BY category_id
   ) category_price_bounds ON category_price_bounds.category_id = p.category_id
   CROSS JOIN dimension_bounds db
   WHERE p.price IS NOT NULL
     AND p.stars IS NOT NULL
-  ORDER BY value_score DESC NULLS LAST, p.stars DESC NULLS LAST, p.review_count DESC
+  ORDER BY value_score DESC NULLS LAST, p.stars DESC NULLS LAST, p.review_count DESC, p.asin ASC
   LIMIT 100;
 `;
 
@@ -171,9 +178,8 @@ const topValueProductsQueryOptimized = `
   JOIN categories c ON c.category_id = m.category_id
   WHERE m.price < m.cat_avg_price
     AND m.stars > m.cat_avg_stars
-    AND m.recent_review_count > 0
     AND m.latest_review_timestamp >= $1::timestamp
-  ORDER BY m.stars DESC NULLS LAST, m.review_count DESC, m.price ASC NULLS LAST
+  ORDER BY m.stars DESC NULLS LAST, m.review_count DESC, m.price ASC NULLS LAST, m.asin ASC
   LIMIT 100;
 `;
 
@@ -195,7 +201,7 @@ const valueRankingsQueryOptimized = `
       AND $2::float = 0.2
       AND $3::float = 0.2
       AND $4::float = 0.2
-    ORDER BY m.value_score_default DESC NULLS LAST, m.stars DESC NULLS LAST, m.review_count DESC
+    ORDER BY m.value_score_default DESC NULLS LAST, m.stars DESC NULLS LAST, m.review_count DESC, m.asin ASC
     LIMIT 100
   ),
   dynamic_weighted AS (
@@ -220,7 +226,7 @@ const valueRankingsQueryOptimized = `
       AND $3::float = 0.2
       AND $4::float = 0.2
     )
-    ORDER BY value_score DESC NULLS LAST, m.stars DESC NULLS LAST, m.review_count DESC
+    ORDER BY value_score DESC NULLS LAST, m.stars DESC NULLS LAST, m.review_count DESC, m.asin ASC
     LIMIT 100
   ),
   ranked AS (
@@ -243,7 +249,7 @@ const valueRankingsQueryOptimized = `
   JOIN products p ON p.asin = ranked.asin
   JOIN categories c ON p.category_id = c.category_id
   LEFT JOIN brands b ON p.brand_id = b.brand_id
-  ORDER BY ranked.value_score DESC NULLS LAST, p.stars DESC NULLS LAST, p.review_count DESC
+  ORDER BY ranked.value_score DESC NULLS LAST, p.stars DESC NULLS LAST, p.review_count DESC, ranked.asin ASC
   LIMIT 100;
 `;
 

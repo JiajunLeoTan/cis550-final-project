@@ -110,7 +110,8 @@ CREATE INDEX IF NOT EXISTS idx_products_discount
     ON Products (
         ((1 - price / list_price)) DESC,
         review_count DESC,
-        stars DESC NULLS LAST
+        stars DESC NULLS LAST,
+        asin ASC
     )
     WHERE list_price IS NOT NULL
       AND list_price > 0
@@ -121,13 +122,11 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS mv_value_score_components AS
 WITH category_price_bounds AS (
     SELECT
         category_id,
-        MIN(price)::float AS min_price,
-        MAX(price)::float AS max_price,
-        AVG(price)::float AS avg_price,
-        AVG(stars)::float AS avg_stars
+        (MIN(price) FILTER (WHERE price IS NOT NULL AND stars IS NOT NULL))::float AS min_price,
+        (MAX(price) FILTER (WHERE price IS NOT NULL AND stars IS NOT NULL))::float AS max_price,
+        (AVG(price) FILTER (WHERE price IS NOT NULL))::float AS avg_price,
+        (AVG(stars) FILTER (WHERE stars IS NOT NULL))::float AS avg_stars
     FROM Products
-    WHERE price IS NOT NULL
-      AND stars IS NOT NULL
     GROUP BY category_id
 ),
 review_horizon AS (
@@ -137,12 +136,18 @@ review_horizon AS (
 recent_reviews AS (
     SELECT
         r.asin,
-        COUNT(*)::int AS recent_review_count,
-        MAX(r.review_timestamp) AS latest_review_timestamp
+        COUNT(*)::int AS recent_review_count
     FROM Reviews r
     CROSS JOIN review_horizon h
     WHERE r.review_timestamp >= h.start_at
     GROUP BY r.asin
+),
+latest_reviews AS (
+    SELECT
+        asin,
+        MAX(review_timestamp) AS latest_review_timestamp
+    FROM Reviews
+    GROUP BY asin
 ),
 base_components AS (
     SELECT
@@ -162,10 +167,11 @@ base_components AS (
             )
         END AS price_efficiency,
         COALESCE(rr.recent_review_count, 0)::float AS recent_review_count,
-        rr.latest_review_timestamp
+        lr.latest_review_timestamp
     FROM Products p
     JOIN category_price_bounds cpb ON cpb.category_id = p.category_id
     LEFT JOIN recent_reviews rr ON rr.asin = p.asin
+    LEFT JOIN latest_reviews lr ON lr.asin = p.asin
     WHERE p.price IS NOT NULL
       AND p.stars IS NOT NULL
 ),
@@ -239,17 +245,18 @@ CREATE INDEX IF NOT EXISTS idx_mv_value_components_top_value
         latest_review_timestamp DESC NULLS LAST,
         stars DESC NULLS LAST,
         review_count DESC,
-        price ASC NULLS LAST
+        price ASC NULLS LAST,
+        asin ASC
     )
-    WHERE recent_review_count > 0;
+    WHERE latest_review_timestamp IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_mv_value_components_default_score
-    ON mv_value_score_components(value_score_default DESC, stars DESC NULLS LAST, review_count DESC);
+    ON mv_value_score_components(value_score_default DESC, stars DESC NULLS LAST, review_count DESC, asin ASC);
 CREATE INDEX IF NOT EXISTS idx_mv_value_components_default_score_cover
-    ON mv_value_score_components(value_score_default DESC NULLS LAST, stars DESC NULLS LAST, review_count DESC)
-    INCLUDE (asin, category_id, brand_id, price, recent_review_count);
+    ON mv_value_score_components(value_score_default DESC NULLS LAST, stars DESC NULLS LAST, review_count DESC, asin ASC)
+    INCLUDE (category_id, brand_id, price, recent_review_count);
 CREATE INDEX IF NOT EXISTS idx_mv_value_components_trending
-    ON mv_value_score_components(category_id, recent_review_count DESC, stars DESC NULLS LAST, review_count DESC)
-    INCLUDE (asin, brand_id, price);
+    ON mv_value_score_components(category_id, recent_review_count DESC, stars DESC NULLS LAST, review_count DESC, asin ASC)
+    INCLUDE (brand_id, price);
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_category_compare AS
 SELECT
