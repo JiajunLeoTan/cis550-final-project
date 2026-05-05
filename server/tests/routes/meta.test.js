@@ -43,6 +43,53 @@ describe('GET /categories', () => {
     expect(res.status).toBe(500);
     expect(res.body).toEqual({ error: 'Internal server error' });
   });
+
+  it('sets CORS headers for an allowed frontend origin', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app)
+      .get('/categories')
+      .set('Origin', 'http://localhost:5173');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+  });
+
+  it('omits CORS headers for a disallowed frontend origin', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app)
+      .get('/categories')
+      .set('Origin', 'https://not-the-frontend.example.com');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  it('allows no-origin requests without CORS headers', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app).get('/categories');
+
+    expect(res.status).toBe(200);
+    expect(res.headers['access-control-allow-origin']).toBeUndefined();
+  });
+
+  it('responds to allowed preflight requests', async () => {
+    const res = await request(app)
+      .options('/categories')
+      .set('Origin', 'http://localhost:5173')
+      .set('Access-Control-Request-Method', 'GET')
+      .set('Access-Control-Request-Headers', 'Content-Type');
+
+    expect(res.status).toBe(204);
+    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+    expect(res.headers['access-control-allow-methods']).toContain('GET');
+    expect(res.headers['access-control-allow-methods']).toContain('POST');
+    expect(res.headers['access-control-allow-methods']).toContain('OPTIONS');
+    expect(res.headers['access-control-allow-headers']).toBe('Content-Type');
+    expect(pool.query).not.toHaveBeenCalled();
+  });
 });
 
 describe('GET /brands', () => {

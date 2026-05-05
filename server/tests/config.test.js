@@ -9,7 +9,7 @@ const REQUIRED_VARS = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD'
 
 function snapshotEnv() {
   const snapshot = {};
-  REQUIRED_VARS.concat(['PORT']).forEach((key) => {
+  REQUIRED_VARS.concat(['PORT', 'CLIENT_ORIGIN']).forEach((key) => {
     snapshot[key] = process.env[key];
   });
   return snapshot;
@@ -43,6 +43,10 @@ describe('config', () => {
     const config = (await import('../config.js')).default;
 
     expect(config.port).toBe(4123);
+    expect(config.clientOrigins).toEqual([
+      'http://localhost:5173',
+      'http://127.0.0.1:5173'
+    ]);
     expect(config.db).toMatchObject({
       host: 'test-host',
       port: 5432,
@@ -58,6 +62,33 @@ describe('config', () => {
     const config = (await import('../config.js')).default;
 
     expect(config.port).toBe(8080);
+  });
+
+  it('falls back to local dev client origins when CLIENT_ORIGIN is unset', async () => {
+    process.env.CLIENT_ORIGIN = '';
+    const config = (await import('../config.js')).default;
+
+    expect(config.clientOrigins).toEqual([
+      'http://localhost:5173',
+      'http://127.0.0.1:5173'
+    ]);
+  });
+
+  it('parses a single CLIENT_ORIGIN', async () => {
+    process.env.CLIENT_ORIGIN = 'https://frontend.example.com';
+    const config = (await import('../config.js')).default;
+
+    expect(config.clientOrigins).toEqual(['https://frontend.example.com']);
+  });
+
+  it('parses a comma-separated CLIENT_ORIGIN allowlist', async () => {
+    process.env.CLIENT_ORIGIN = ' https://a.example.com, ,https://b.example.com ';
+    const config = (await import('../config.js')).default;
+
+    expect(config.clientOrigins).toEqual([
+      'https://a.example.com',
+      'https://b.example.com'
+    ]);
   });
 
   it('throws when a required env var is missing', async () => {

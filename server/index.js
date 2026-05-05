@@ -11,7 +11,20 @@ const metaRoutes = require('./routes/meta');
 
 const app = express();
 
-app.use(cors());
+const allowedOrigins = new Set(config.clientOrigins);
+app.use(cors({
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(null, false);
+  },
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type'],
+  credentials: false,
+  optionsSuccessStatus: 204
+}));
 app.use(express.json());
 
 app.use('/', productRoutes);

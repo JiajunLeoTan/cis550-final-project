@@ -108,6 +108,8 @@ npm run dev
 The backend defaults to `http://localhost:8080`; the frontend defaults to
 `http://localhost:5173`. To point the client at another backend, create
 `client/.env.local` with `VITE_API_BASE_URL=https://your-backend-host`.
+Set backend `CLIENT_ORIGIN` to the frontend URL allowed to call the API; it
+defaults to the local Vite origins when unset.
 
 ## Data Pipeline
 
@@ -200,8 +202,11 @@ Live URL: TBD after deployment.
 
 Recommended deployment split:
 
-- Backend: Render or Fly.io with the root `.env` variables configured.
+- Backend: Render or Fly.io with the root `.env` variables configured,
+  including `CLIENT_ORIGIN` set to the deployed frontend URL.
 - Frontend: Vercel with `VITE_API_BASE_URL` set to the deployed backend URL.
+  `VITE_API_BASE_URL` points frontend to backend; `CLIENT_ORIGIN` lets backend
+  accept browser requests from frontend.
 - Database: AWS RDS PostgreSQL with schema, indexes, materialized views, and
   cleaned CSVs loaded through the data pipeline.
 

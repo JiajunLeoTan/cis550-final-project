@@ -23,8 +23,20 @@ function parseInteger(value, fallback, label) {
   return parsed;
 }
 
+function parseClientOrigins(value) {
+  if (!value) {
+    return ['http://localhost:5173', 'http://127.0.0.1:5173'];
+  }
+
+  return value
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
 module.exports = {
   port: parseInteger(process.env.PORT, 8080, 'PORT'),
+  clientOrigins: parseClientOrigins(process.env.CLIENT_ORIGIN),
   db: {
     host: process.env.DB_HOST,
     port: parseInteger(process.env.DB_PORT, 5432, 'DB_PORT'),
