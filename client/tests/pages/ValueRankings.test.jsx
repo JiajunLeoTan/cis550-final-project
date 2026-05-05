@@ -39,10 +39,10 @@ describe('ValueRankings', () => {
     expect(screen.getByLabelText(/Rating strength/)).toBeInTheDocument();
     await waitFor(() => expect(api.valueRankings).toHaveBeenCalled());
     expect(api.valueRankings.mock.calls[0][0]).toEqual({
-      wRating: 0.25,
-      wReviews: 0.25,
-      wPriceEff: 0.25,
-      wRecent: 0.25
+      wRating: 0.4,
+      wReviews: 0.2,
+      wPriceEff: 0.2,
+      wRecent: 0.2
     });
   });
 

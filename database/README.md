@@ -16,7 +16,7 @@ For a detailed explanation of the tables, views, and refresh flow, see
   optimization. It is useful when applying or rebuilding indexes and
   materialized views on an already-loaded database.
 - `refresh_matviews.sql` - Refreshes the materialized views consumed by the
-  optimized analytics, trending, and value-ranking routes.
+  optimized analytics, trending, top-value, and value-ranking routes.
 
 ## Schema Notes
 

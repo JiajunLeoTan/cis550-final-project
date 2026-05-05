@@ -28,6 +28,7 @@ DB_PASSWORD=your-strong-password
 GUEST_USER=guest
 GUEST_PASSWORD=your-guest-password
 PORT=8080
+CLIENT_ORIGIN=http://localhost:5173
 ```
 
 ## Notes
@@ -37,8 +38,12 @@ PORT=8080
 - Product SQL is split by feature under `server/queries/products/`, with
   original and optimized variants exported through the barrel module.
 - `recent_review_count` is computed from `reviews.review_timestamp`; it is not stored on `products`.
+- Append `?optimized=1` or `&optimized=1` to use the optimized SQL branch where
+  a route has one.
 
 ## Routes
+
+The backend currently exposes 17 route handlers.
 
 ### 1. `GET /categories`
 
@@ -70,25 +75,37 @@ curl "http://127.0.0.1:8080/products/search?keyword=guacamole&minStars=4"
 curl "http://127.0.0.1:8080/deals?maxPrice=250"
 ```
 
-### 6. `GET /products/:asin/rating-distribution`
+### 6. `GET /products/category`
+
+```bash
+curl "http://127.0.0.1:8080/products/category?category=Hair%20Care%20Products&minStars=4&limit=24&offset=0"
+```
+
+### 7. `GET /products/brand`
+
+```bash
+curl "http://127.0.0.1:8080/products/brand?brand=Olay&minStars=3&limit=24&offset=0"
+```
+
+### 8. `GET /products/:asin/rating-distribution`
 
 ```bash
 curl "http://127.0.0.1:8080/products/B0719KWG8H/rating-distribution"
 ```
 
-### 7. `GET /products/:asin/helpful-reviews`
+### 9. `GET /products/:asin/helpful-reviews`
 
 ```bash
 curl "http://127.0.0.1:8080/products/B0719KWG8H/helpful-reviews"
 ```
 
-### 8. `GET /products/:asin/alternatives`
+### 10. `GET /products/:asin/alternatives`
 
 ```bash
 curl "http://127.0.0.1:8080/products/B0092MCQZ4/alternatives"
 ```
 
-### 9. `POST /cart/savings`
+### 11. `POST /cart/savings`
 
 ```bash
 curl -X POST "http://127.0.0.1:8080/cart/savings" \
@@ -96,37 +113,37 @@ curl -X POST "http://127.0.0.1:8080/cart/savings" \
   -d '{"asins":["B07SJHLTBT","B083Y6BJ8W"]}'
 ```
 
-### 10. `GET /analytics/categories/compare`
+### 12. `GET /analytics/categories/compare`
 
 ```bash
 curl "http://127.0.0.1:8080/analytics/categories/compare"
 ```
 
-### 11. `GET /products/trending`
+### 13. `GET /products/trending`
 
 ```bash
 curl "http://127.0.0.1:8080/products/trending?category=Hair%20Care%20Products&months=120"
 ```
 
-### 12. `GET /products/top-value`
+### 14. `GET /products/top-value`
 
 ```bash
 curl "http://127.0.0.1:8080/products/top-value?reviewedSince=2018-01-01"
 ```
 
-### 13. `GET /analytics/brands/performance`
+### 15. `GET /analytics/brands/performance`
 
 ```bash
 curl "http://127.0.0.1:8080/analytics/brands/performance"
 ```
 
-### 14. `GET /analytics/reviews/trend`
+### 16. `GET /analytics/reviews/trend`
 
 ```bash
 curl "http://127.0.0.1:8080/analytics/reviews/trend?category=Hair%20Care%20Products"
 ```
 
-### 15. `GET /products/value-rankings`
+### 17. `GET /products/value-rankings`
 
 ```bash
 curl "http://127.0.0.1:8080/products/value-rankings?wRating=0.4&wReviews=0.2&wPriceEff=0.2&wRecent=0.2"

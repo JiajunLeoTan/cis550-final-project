@@ -37,17 +37,18 @@ Open Analytics. Show all three charts:
 - Brand performance: `GET /analytics/brands/performance`
 - Review trend: `GET /analytics/reviews/trend`
 
-Mention that optimized analytics responses are cached for five minutes and that
-the review trend cache is keyed by category. Category comparison now reads from
-a materialized view and improved from 1805.5 ms median to 0.4 ms median.
+Mention that optimized category comparison and review trend responses are cached
+for five minutes, with review trend keyed by category. Brand performance reads
+directly from its materialized view. Category comparison improved from 1962.4 ms
+median to 0.4 ms median.
 
 ## 2:15-3:00 Value Rankings
 
-Open Value Rankings and move each slider. Explain that
-`GET /products/value-rankings` computes a weighted score across rating, review
-volume, price efficiency, and recent review activity. Use the before/after
+Open Value Rankings. Explain that the Balanced preset uses
+`0.4/0.2/0.2/0.2`, matching the indexed optimized score, while slider changes
+rescore the materialized components for custom priorities. Use the before/after
 timing headline from `docs/timings.md`.
-Timing headline: value rankings improved from 9223.5 ms median to 1.7 ms
+Timing headline: value rankings improved from 9363.9 ms median to 1.4 ms
 median.
 
 ## 3:00-3:30 Closing

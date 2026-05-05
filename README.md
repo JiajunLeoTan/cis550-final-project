@@ -34,9 +34,9 @@ Raw files live in `data/raw/`. Cleaned relational CSVs are generated into
 | Users | extracted from linked reviews | n/a | 1,279,603 |
 
 The cleaner deduplicates products by ASIN, normalizes category foreign keys,
-extracts canonical brand entities from product titles, drops rare brand
-singletons to `NULL brand_id`, filters reviews to products present in the
-product table, and writes the normalized tables used by the API. The final
+extracts canonical brand entities from product titles, drops rare brands with
+fewer than five products to `NULL brand_id`, filters reviews to products present
+in the product table, and writes the normalized tables used by the API. The final
 database and cleaned review snapshot preserve the loaded review corpus used for
 the demo; the checked-out `data/raw/amazon_reviews.csv` alone is a smaller
 source subset and is not sufficient to recreate the current cleaned review table
@@ -139,9 +139,9 @@ Create or refresh the read-only guest user:
 
 ## Database Maintenance
 
-The optimized analytics and value-ranking routes read from PostgreSQL
-materialized views. Refresh them after re-ingesting data, or on a scheduled
-deployment job:
+The optimized analytics, trending, top-value, and value-ranking routes read
+from PostgreSQL materialized views. Refresh them after re-ingesting data, or on
+a scheduled deployment job:
 
 ```bash
 node scripts/refresh_matviews.js
@@ -155,16 +155,16 @@ lives in `database/schema.sql`.
 Run query timing benchmarks from the project root:
 
 ```bash
-node scripts/benchmark.js --phase pre-index
-# apply/rebuild schema indexes, then:
-node scripts/benchmark.js --phase post-index --baseline pre-index
+node scripts/benchmark.js --phase baseline
+# apply/rebuild schema indexes or materialized views, then:
+node scripts/benchmark.js --phase post-index --baseline baseline
 ```
 
 Benchmark output is written to `docs/benchmarks/` and `docs/timings.md`.
 
 ## API
 
-The server exposes the 15 Milestone 4 routes documented in `server/README.md`.
+The server exposes the 17 backend routes documented in `server/README.md`.
 Every route preserves the optimized query-mode contract:
 
 ```text

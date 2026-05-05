@@ -63,7 +63,8 @@ Important function groups:
   millisecond epoch values.
 - `extract_brand()`, `normalize_brand()`, and `canonical_brand_name()` derive a
   brand dimension from product titles. The product dataset has no official brand
-  table, so brands are guessed conservatively and rare singletons are not linked.
+  table, so brands are guessed conservatively and brands with fewer than five
+  products are not linked.
 - `discover_review_files()` prefers the newer category review streams and falls
   back to the legacy review CSV.
 - `validate_product_dimensions()` checks the product, category, brand, and valid
@@ -181,7 +182,7 @@ queries through the shared pool, and return JSON.
 | File | What it does | Inputs | Returns / side effects |
 |---|---|---|---|
 | `server/index.js` | Builds the Express app, mounts route modules, and starts the server when run directly. | HTTP requests, `.env` through config. | Exports the app for tests; listens on `PORT` in normal runs. |
-| `server/config.js` | Loads `.env`, validates required database variables, and parses numeric config. | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, optional `PORT`. | Config object for server and database. |
+| `server/config.js` | Loads `.env`, validates required database variables, and parses numeric config. | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, optional `PORT` and `CLIENT_ORIGIN`. | Config object for server and database. |
 | `server/db.js` | Creates the shared PostgreSQL pool. | Config from `server/config.js`. | Exports a `pg.Pool`; logs idle client errors. |
 | `server/cache.js` | Small in-memory TTL cache used for stable metadata/analytics responses. | Cache key, TTL, loader function. | Returns cached or freshly loaded data; exposes `clearCache()` for tests. |
 
@@ -192,7 +193,7 @@ queries through the shared pool, and return JSON.
 | `server/routes/meta.js` | `GET /categories`, `GET /brands`, `GET /products/:asin`. | Validates ASIN format, uses short cache headers, caches optimized category/brand reads in memory, returns 404 for missing products. |
 | `server/routes/products.js` | Search, deals, category listing, brand listing, rating distribution, helpful reviews, alternatives, trending, top-value, value rankings. | Parses numeric query params with bounds, rejects bad ASINs/weights, checks product existence before detail subqueries, and keeps response shapes stable across original/optimized SQL. |
 | `server/routes/cart.js` | `POST /cart/savings`. | Validates an array of up to 200 ASINs and returns aggregate list price, current price, and savings. |
-| `server/routes/analytics.js` | Category comparison, brand performance, review trend. | Uses optimized materialized views when available; caches stable optimized analytics; requires category for review trends. |
+| `server/routes/analytics.js` | Category comparison, brand performance, review trend. | Uses optimized materialized views when available; caches optimized category comparison and review trend responses; requires category for review trends. |
 
 ### SQL modules
 
@@ -207,7 +208,7 @@ queries through the shared pool, and return JSON.
 | `server/queries/products/browse.sql.js` | Category and brand product listings. | Takes category/brand name plus filters and pagination; optimized queries page product rows before joining display names. |
 | `server/queries/products/detail.sql.js` | Rating distribution, helpful reviews, alternatives. | Takes ASIN and returns chart rows, review rows, or product alternatives. |
 | `server/queries/products/trending.sql.js` | Category trending products. | Original query counts recent reviews live; optimized query reads recent counts from the value components view. |
-| `server/queries/products/value.sql.js` | Top-value and weighted ranking queries. | Original queries compute scoring live; optimized queries use precomputed normalized components and preserve the same response fields. |
+| `server/queries/products/value.sql.js` | Top-value and weighted ranking queries. | Original queries compute scoring live; optimized queries use precomputed normalized components, with the `0.4/0.2/0.2/0.2` default score indexed for the Balanced preset. |
 
 ## Client
 
@@ -239,7 +240,7 @@ components render repeated UI pieces.
 | `client/src/pages/ProductDetail.jsx` | Product overview, rating chart, helpful reviews, alternatives, and cart action. | Reads product detail plus three product-side endpoints; writes cart changes through `CartContext`. |
 | `client/src/pages/Cart.jsx` | Cart receipt and savings summary. | Reads cart items from context, posts ASINs to `/cart/savings`, can remove or clear items. |
 | `client/src/pages/Analytics.jsx` | Category bars, brand leaderboard, and review trend chart. | Reads categories, category comparison, brand performance, and review trend data; local state controls metric/category. |
-| `client/src/pages/ValueRankings.jsx` | Weighted product ranking tool. | Reads `/products/value-rankings`; local sliders choose weights and presets. |
+| `client/src/pages/ValueRankings.jsx` | Weighted product ranking tool. | Reads `/products/value-rankings`; the Balanced preset uses `0.4/0.2/0.2/0.2`, and local sliders choose custom weights. |
 | `client/src/pages/NotFound.jsx` | Simple 404 page. | No API data; links back home. |
 
 ### Components

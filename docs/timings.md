@@ -16,7 +16,7 @@ Timing cells are `min / median / max` milliseconds across 5 measured `EXPLAIN AN
 | GET /products/:asin/alternatives | asin=B0719KWG8H | 1.4 / 1.4 / 5.7 | 0.3 / 0.3 / 0.3 | 4.87x | 24.20x |
 | POST /cart/savings | asins=B00T0C9XRK,B09MV3KMPT,B07PH22TG9,B07VMNJHBK,B09JVTQKDN | 0.1 / 0.1 / 0.1 | 0.1 / 0.1 / 0.1 | 1.00x | 1.00x |
 | GET /analytics/categories/compare | none | 1922.3 / 1962.4 / 2030.5 | 0.4 / 0.4 / 0.4 | 5110.40x | 5071.94x |
-| GET /products/trending | category=Hair Care Products, months=3 | 28.9 / 30.3 / 33.8 | 6.0 / 7.5 / 8.9 | 4.06x | 22.56x |
+| GET /products/trending | category=Hair Care Products, default dataset window | 28.9 / 30.3 / 33.8 | 6.0 / 7.5 / 8.9 | 4.06x | 22.56x |
 | GET /products/top-value | reviewedSince=2018-01-01 | 448.0 / 449.7 / 470.2 | 0.8 / 0.9 / 0.9 | 527.20x | 3049.04x |
 | GET /analytics/brands/performance | none | 454.1 / 457.2 / 464.3 | 0.0 / 0.1 / 0.1 | 9143.14x | 109989.40x |
 | GET /analytics/reviews/trend | category=Hair Care Products | 11.8 / 11.9 / 15.1 | 11.7 / 11.8 / 11.8 | 1.00x | 1.00x |

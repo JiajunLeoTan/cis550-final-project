@@ -7,7 +7,7 @@ import { Empty, ErrorBanner } from '../components/States.jsx';
 import { formatCurrency } from '../utils/format.js';
 
 const PRESETS = [
-  { name: 'Balanced', w: { wRating: 0.25, wReviews: 0.25, wPriceEff: 0.25, wRecent: 0.25 } },
+  { name: 'Balanced', w: { wRating: 0.4, wReviews: 0.2, wPriceEff: 0.2, wRecent: 0.2 } },
   { name: 'Quality first', w: { wRating: 0.5, wReviews: 0.3, wPriceEff: 0.1, wRecent: 0.1 } },
   { name: 'Price first', w: { wRating: 0.2, wReviews: 0.15, wPriceEff: 0.55, wRecent: 0.1 } },
   { name: 'Recent activity', w: { wRating: 0.15, wReviews: 0.2, wPriceEff: 0.1, wRecent: 0.55 } }

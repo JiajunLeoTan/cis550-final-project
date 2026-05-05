@@ -31,7 +31,7 @@ The goal of Axiom is to develop a high-performance, full-stack shopping to provi
 \begin{itemize}
     \item \textbf{High-Efficiency Discovery:} Real-time search and filtering across millions of rows using optimized indexing.
     \item \textbf{Analytical Insights:} Comparative brand and category metrics visualized through custom data structures.
-    \item \textbf{Personalized Utility:} A customizable value-ranking engine that allows users to weight product attributes (price, stars, and recency) according to their specific priorities.
+    \item \textbf{Personalized Utility:} A customizable value-ranking engine that allows users to weight product attributes (price, stars, review depth, and recency) according to their specific priorities.
 \end{itemize}
 
 \section{Architecture}
@@ -64,7 +64,7 @@ extracts and canonicalizes brands from product titles, and keeps only reviews
 whose ASIN or parent ASIN can be linked to a cleaned product. Brand entity
 resolution lowercases and strips punctuation for grouping, removes common legal
 suffixes such as Inc., Co., LLC, and Ltd., and drops brands with fewer than five
-products so rare singletons become \texttt{NULL brand\_id}.
+products so rare brand links become \texttt{NULL brand\_id}.
 
 \begin{center}
 \begin{tabular}{lrr}
@@ -74,16 +74,16 @@ Relation & Cleaned rows & Notes \\
 Categories & 248 & Original category IDs preserved \\
 Brands & 26,484 & Rare brands with fewer than five products dropped \\
 Products & 1,426,336 & Deduplicated by ASIN \\
-Users & 11,902 & Extracted from linked reviews \\
-Reviews & 11,927 & Linked through ASIN or parent ASIN \\
+Users & 1,279,603 & Extracted from linked reviews \\
+Reviews & 2,998,677 & Linked through ASIN or parent ASIN \\
 \bottomrule
 \end{tabular}
 \end{center}
 
-The current raw review file contains many ASINs that are absent from the product
-file: 689,477 raw reviews were filtered as orphan reviews. A larger final review
-table therefore requires a matching product/review source pair, not additional
-sampling inside the cleaner.
+The checked-in \texttt{amazon\_reviews.csv} is a smaller source subset than the
+final cleaned review snapshot used for the demo. Recreating the current
+multi-million-row review table requires the matching full product/review source
+pair, not additional sampling inside the cleaner.
 
 \section{Database}
 \begin{center}
@@ -131,13 +131,15 @@ and \texttt{server/queries/cart.sql.js}.
 \section{Performance Evaluation}
 The benchmark runner executes one discarded warmup run, waits one second, then
 collects five measured \texttt{EXPLAIN ANALYZE} runs. The generated table is
-saved to \texttt{docs/timings.md}. The largest improvements now come from
-\texttt{pg\_trgm} search support remains available, but the largest measured
-improvements in this run come from a partial discount expression index and
-materialized views for category comparison, brand performance, value components,
-and trending components. The top-value and trending optimized paths use a data-relative
-12-month review window from the materialized view, because the loaded review
-corpus ends in 2023 while the server clock is in 2026.
+saved to \texttt{docs/timings.md}. \texttt{pg\_trgm} search support remains
+available, but the largest measured improvements in this run come from a
+partial discount expression index and materialized views for category
+comparison, brand performance, value components, and trending components. The
+trending and default value-ranking optimized paths use a data-relative 12-month
+review window from the materialized view, because the loaded review corpus ends
+in 2023 while the server clock is in 2026. Top-value uses the requested
+\texttt{reviewedSince} date against each product's latest linked review
+timestamp.
 
 \begin{center}
 \begin{tabular}{lrrr}
