@@ -384,6 +384,9 @@ router.get('/products/:asin/alternatives', async (req, res, next) => {
 
 router.get('/products/trending', async (req, res, next) => {
   const { category } = req.query;
+  const hasExplicitMonths = req.query.months !== undefined
+    && req.query.months !== null
+    && req.query.months !== '';
 
   if (!category) {
     return res.status(400).json({ error: 'missing required param: category' });
@@ -405,7 +408,8 @@ router.get('/products/trending', async (req, res, next) => {
   }
 
   try {
-    const sql = isOptimized(req) ? trendingProductsQueryOptimized : trendingProductsQuery;
+    const useOptimizedSql = isOptimized(req) && !hasExplicitMonths;
+    const sql = useOptimizedSql ? trendingProductsQueryOptimized : trendingProductsQuery;
     const { rows } = await pool.query(sql, [category, months]);
     return res.json(rows);
   } catch (err) {

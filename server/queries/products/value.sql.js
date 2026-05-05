@@ -155,8 +155,8 @@ const valueRankingsQuery = `
   LIMIT 100;
 `;
 
-// The route still accepts reviewedSince for the shared API contract. The
-// optimized path uses the materialized view's data-relative review window.
+// The materialized view stores each product's latest review timestamp, so the
+// optimized path can honor the route's reviewedSince contract.
 const topValueProductsQueryOptimized = `
   SELECT
     m.asin,
@@ -172,7 +172,7 @@ const topValueProductsQueryOptimized = `
   WHERE m.price < m.cat_avg_price
     AND m.stars > m.cat_avg_stars
     AND m.recent_review_count > 0
-    AND $1::timestamp IS NOT NULL
+    AND m.latest_review_timestamp >= $1::timestamp
   ORDER BY m.stars DESC NULLS LAST, m.review_count DESC, m.price ASC NULLS LAST
   LIMIT 100;
 `;

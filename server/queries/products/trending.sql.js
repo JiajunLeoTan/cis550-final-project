@@ -27,8 +27,8 @@ const trendingProductsQuery = `
   LIMIT 15;
 `;
 
-// The materialized view stores a data-relative recent-review count, so the
-// optimized path can read the top category rows directly.
+// The materialized view stores a data-relative recent-review count for the
+// default optimized path. Explicit month windows use the live SQL route path.
 const trendingProductsQueryOptimized = `
   WITH top_products AS (
     SELECT

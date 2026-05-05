@@ -137,7 +137,8 @@ review_horizon AS (
 recent_reviews AS (
     SELECT
         r.asin,
-        COUNT(*)::int AS recent_review_count
+        COUNT(*)::int AS recent_review_count,
+        MAX(r.review_timestamp) AS latest_review_timestamp
     FROM Reviews r
     CROSS JOIN review_horizon h
     WHERE r.review_timestamp >= h.start_at
@@ -160,7 +161,8 @@ base_components AS (
                 / NULLIF(cpb.max_price - cpb.min_price, 0)
             )
         END AS price_efficiency,
-        COALESCE(rr.recent_review_count, 0)::float AS recent_review_count
+        COALESCE(rr.recent_review_count, 0)::float AS recent_review_count,
+        rr.latest_review_timestamp
     FROM Products p
     JOIN category_price_bounds cpb ON cpb.category_id = p.category_id
     LEFT JOIN recent_reviews rr ON rr.asin = p.asin
@@ -215,6 +217,7 @@ SELECT
     cat_avg_stars,
     price_efficiency,
     recent_review_count::int AS recent_review_count,
+    latest_review_timestamp,
     norm_stars,
     norm_review_count,
     norm_price_efficiency,
@@ -232,7 +235,12 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_mv_value_components_asin
 CREATE INDEX IF NOT EXISTS idx_mv_value_components_category
     ON mv_value_score_components(category_id);
 CREATE INDEX IF NOT EXISTS idx_mv_value_components_top_value
-    ON mv_value_score_components(stars DESC NULLS LAST, review_count DESC, price ASC NULLS LAST)
+    ON mv_value_score_components(
+        latest_review_timestamp DESC NULLS LAST,
+        stars DESC NULLS LAST,
+        review_count DESC,
+        price ASC NULLS LAST
+    )
     WHERE recent_review_count > 0;
 CREATE INDEX IF NOT EXISTS idx_mv_value_components_default_score
     ON mv_value_score_components(value_score_default DESC, stars DESC NULLS LAST, review_count DESC);
@@ -275,12 +283,12 @@ brand_review_stats AS (
     SELECT
         p.brand_id,
         COUNT(*) AS qualifying_review_count,
+        (COUNT(*) FILTER (WHERE r.verified_purchase = TRUE))::int AS verified_review_count,
         AVG(r.rating)::float AS avg_review_score,
         COALESCE(SUM(r.helpful_vote), 0)::int AS total_helpful_votes
     FROM Products p
     JOIN Reviews r ON r.asin = p.asin
     WHERE p.brand_id IS NOT NULL
-      AND r.verified_purchase = TRUE
     GROUP BY p.brand_id
     HAVING COUNT(*) >= 10
 )
@@ -290,6 +298,7 @@ SELECT
     bps.avg_product_rating,
     bps.total_products,
     brs.qualifying_review_count::int AS qualifying_review_count,
+    brs.verified_review_count,
     brs.avg_review_score,
     brs.total_helpful_votes
 FROM brand_product_stats bps

@@ -77,35 +77,33 @@ export default function Analytics() {
     const rows = trend || [];
     if (!rows.length) return null;
     let total = 0;
-    let verifiedSum = 0;
-    let verifiedW = 0;
-    let unverifiedSum = 0;
-    let unverifiedW = 0;
+    let highActivitySum = 0;
+    let highActivityW = 0;
+    let lowerActivitySum = 0;
+    let lowerActivityW = 0;
     rows.forEach((r) => {
       const monthTotal = Number(r.total_reviews) || 0;
-      const verified = Number(r.verified_count) || 0;
-      const unverified = Math.max(0, monthTotal - verified);
       total += monthTotal;
-      if (r.high_cred_avg != null && verified > 0) {
-        verifiedSum += Number(r.high_cred_avg) * verified;
-        verifiedW += verified;
+      if (r.high_cred_avg != null) {
+        highActivitySum += Number(r.high_cred_avg);
+        highActivityW += 1;
       }
-      if (r.low_cred_avg != null && unverified > 0) {
-        unverifiedSum += Number(r.low_cred_avg) * unverified;
-        unverifiedW += unverified;
+      if (r.low_cred_avg != null) {
+        lowerActivitySum += Number(r.low_cred_avg);
+        lowerActivityW += 1;
       }
     });
-    const verifiedAvg = verifiedW > 0 ? verifiedSum / verifiedW : null;
-    const unverifiedAvg = unverifiedW > 0 ? unverifiedSum / unverifiedW : null;
-    const gap = verifiedAvg != null && unverifiedAvg != null
-      ? verifiedAvg - unverifiedAvg
+    const highActivityAvg = highActivityW > 0 ? highActivitySum / highActivityW : null;
+    const lowerActivityAvg = lowerActivityW > 0 ? lowerActivitySum / lowerActivityW : null;
+    const gap = highActivityAvg != null && lowerActivityAvg != null
+      ? highActivityAvg - lowerActivityAvg
       : null;
     return {
       total,
-      verifiedAvg,
-      unverifiedAvg,
-      verifiedW,
-      unverifiedW,
+      highActivityAvg,
+      lowerActivityAvg,
+      highActivityW,
+      lowerActivityW,
       gap
     };
   }, [trend]);
@@ -180,13 +178,13 @@ export default function Analytics() {
         ) : brandRows.length === 0 ? (
           <Empty
             title="No qualifying brands yet."
-            description="Brand performance requires verified review coverage; the current dataset is sparse."
+            description="Brand performance requires enough linked review coverage for each brand."
           />
         ) : (
           <>
             <BrandLeaderboard rows={brandRows} />
             <p className="chart-caption">
-              Ranked by verified review score, then review sample size and helpful votes.
+              Ranked by average review score, then linked review sample size and helpful votes.
             </p>
           </>
         )}
@@ -195,7 +193,7 @@ export default function Analytics() {
       <section>
         <header className="section-header">
           <span className="section-num">03</span>
-          <h2 className="section-title">Verified vs unverified ratings</h2>
+          <h2 className="section-title">High-activity vs lower-activity ratings</h2>
           <div className="section-actions">
             <select
               className="select analytics-select"
@@ -213,9 +211,9 @@ export default function Analytics() {
         </header>
 
         <p className="section-deck">
-          Monthly average star rating for {category || 'the selected category'}, split by whether the
-          reviewer purchased the item. Verified buyers are a more reliable signal, so a wider gap
-          means unverified ratings are skewing the overall stars up or down.
+          Monthly average star rating for {category || 'the selected category'}, split by reviewer
+          activity. High-activity reviewers have at least 10 reviews in the corpus, so a wider gap
+          means occasional reviewers are rating differently from more established reviewers.
         </p>
 
         {trendLoading ? (
@@ -234,27 +232,27 @@ export default function Analytics() {
                   <dd>{formatCount(trendSummary.total)}</dd>
                 </div>
                 <div className="stat">
-                  <dt>Verified avg</dt>
+                  <dt>High-activity avg</dt>
                   <dd>
-                    {trendSummary.verifiedAvg != null
-                      ? `${trendSummary.verifiedAvg.toFixed(2)} ★`
+                    {trendSummary.highActivityAvg != null
+                      ? `${trendSummary.highActivityAvg.toFixed(2)} ★`
                       : '—'}
                     <span className="stat-sub">
-                      {trendSummary.verifiedW > 0
-                        ? `${formatCount(trendSummary.verifiedW)} reviews`
+                      {trendSummary.highActivityW > 0
+                        ? `${formatCount(trendSummary.highActivityW)} months`
                         : 'no data'}
                     </span>
                   </dd>
                 </div>
                 <div className="stat">
-                  <dt>Unverified avg</dt>
+                  <dt>Lower-activity avg</dt>
                   <dd>
-                    {trendSummary.unverifiedAvg != null
-                      ? `${trendSummary.unverifiedAvg.toFixed(2)} ★`
+                    {trendSummary.lowerActivityAvg != null
+                      ? `${trendSummary.lowerActivityAvg.toFixed(2)} ★`
                       : '—'}
                     <span className="stat-sub">
-                      {trendSummary.unverifiedW > 0
-                        ? `${formatCount(trendSummary.unverifiedW)} reviews`
+                      {trendSummary.lowerActivityW > 0
+                        ? `${formatCount(trendSummary.lowerActivityW)} months`
                         : 'no data'}
                     </span>
                   </dd>
@@ -265,7 +263,7 @@ export default function Analytics() {
                     {trendSummary.gap != null
                       ? `${trendSummary.gap > 0 ? '+' : ''}${trendSummary.gap.toFixed(2)} ★`
                       : '—'}
-                    <span className="stat-sub">verified − unverified</span>
+                    <span className="stat-sub">high − lower activity</span>
                   </dd>
                 </div>
               </dl>
@@ -284,12 +282,12 @@ export default function Analytics() {
                   values: trendChart.overall
                 },
                 {
-                  label: 'Verified buyers',
+                  label: 'High activity',
                   color: 'var(--accent)',
                   values: trendChart.high
                 },
                 {
-                  label: 'Unverified',
+                  label: 'Lower activity',
                   color: 'var(--ink-3)',
                   values: trendChart.low,
                   dashed: true
@@ -300,9 +298,9 @@ export default function Analytics() {
               height={280}
             />
             <p className="chart-caption">
-              A wider gap between the verified and unverified lines means unverified reviewers are
-              rating differently from people who actually bought the item. The bars below show how many
-              reviews each month is based on; tall bars are higher-confidence months.
+              A wider gap between the reviewer-activity lines means occasional reviewers are rating
+              differently from more established reviewers. The bars below show how many reviews each
+              month is based on; tall bars are higher-confidence months.
             </p>
           </>
         )}
@@ -317,8 +315,8 @@ function BrandLeaderboard({ rows }) {
       <div className="brand-row brand-row--head" role="row">
         <div role="columnheader">Rank</div>
         <div role="columnheader">Brand</div>
-        <div role="columnheader">Verified score</div>
-        <div role="columnheader">Verified reviews</div>
+        <div role="columnheader">Review score</div>
+        <div role="columnheader">Linked reviews</div>
         <div role="columnheader">Helpful votes</div>
         <div role="columnheader">Product avg</div>
       </div>
@@ -342,12 +340,12 @@ function BrandLeaderboard({ rows }) {
           </div>
           <MetricCell
             value={formatStars(row.avg_review_score)}
-            label="verified avg"
+            label="review avg"
             strong
           />
           <MetricCell
             value={formatOptionalCount(row.qualifying_review_count)}
-            label="verified reviews"
+            label="linked reviews"
           />
           <MetricCell
             value={formatOptionalCount(row.total_helpful_votes)}

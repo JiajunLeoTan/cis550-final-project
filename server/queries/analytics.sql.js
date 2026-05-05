@@ -25,12 +25,12 @@ const brandsPerformanceQuery = `
     SELECT
       p.brand_id,
       COUNT(*) AS qualifying_review_count,
+      (COUNT(*) FILTER (WHERE r.verified_purchase = TRUE))::int AS verified_review_count,
       AVG(r.rating)::float AS avg_review_score,
       COALESCE(SUM(r.helpful_vote), 0)::int AS total_helpful_votes
     FROM products p
     JOIN reviews r ON r.asin = p.asin
     WHERE p.brand_id IS NOT NULL
-      AND r.verified_purchase = TRUE
     GROUP BY p.brand_id
   )
   SELECT
@@ -39,7 +39,7 @@ const brandsPerformanceQuery = `
     bps.avg_product_rating AS product_avg_rating,
     bps.total_products,
     brs.qualifying_review_count::int AS qualifying_review_count,
-    brs.qualifying_review_count::int AS verified_review_count,
+    brs.verified_review_count,
     brs.avg_review_score,
     brs.total_helpful_votes
   FROM brand_product_stats bps
@@ -50,16 +50,24 @@ const brandsPerformanceQuery = `
 `;
 
 const reviewsTrendQuery = `
-  WITH category_reviews AS (
+  WITH reviewer_counts AS (
+    SELECT
+      user_id,
+      COUNT(*)::int AS total_reviews
+    FROM reviews
+    GROUP BY user_id
+  ),
+  category_reviews AS (
     SELECT
       DATE_TRUNC('month', r.review_timestamp)::timestamp AS review_month,
       r.rating::float AS rating,
       r.verified_purchase,
       CASE
-        WHEN r.verified_purchase THEN 'high'
+        WHEN rc.total_reviews >= 10 THEN 'high'
         ELSE 'low'
       END AS credibility_group
     FROM reviews r
+    JOIN reviewer_counts rc ON rc.user_id = r.user_id
     JOIN products p ON r.asin = p.asin
     JOIN categories c ON p.category_id = c.category_id
     WHERE c.category_name = $1
@@ -100,7 +108,7 @@ const brandsPerformanceQueryOptimized = `
     avg_product_rating AS product_avg_rating,
     total_products,
     qualifying_review_count,
-    qualifying_review_count AS verified_review_count,
+    verified_review_count,
     avg_review_score,
     total_helpful_votes
   FROM mv_brand_performance

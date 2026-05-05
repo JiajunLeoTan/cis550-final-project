@@ -28,17 +28,19 @@ Raw files live in `data/raw/`. Cleaned relational CSVs are generated into
 | Dataset | Source file | Current raw rows | Current cleaned rows |
 |---|---:|---:|---:|
 | Products | `amazon_products.csv` | 1,426,337 | 1,426,336 |
-| Reviews | `amazon_reviews.csv` | 701,528 | 11,927 linked reviews |
+| Reviews | `amazon_reviews.csv` | 701,528 | 2,998,677 linked reviews |
 | Categories | `amazon_categories.csv` | 248 | 248 |
 | Brands | extracted from product titles | n/a | 26,484 |
-| Users | extracted from linked reviews | n/a | 11,902 |
+| Users | extracted from linked reviews | n/a | 1,279,603 |
 
 The cleaner deduplicates products by ASIN, normalizes category foreign keys,
 extracts canonical brand entities from product titles, drops rare brand
 singletons to `NULL brand_id`, filters reviews to products present in the
-product table, and writes the normalized tables used by the API. The current raw
-review file is broader than the product file, so many review ASINs are filtered
-because no matching product is present.
+product table, and writes the normalized tables used by the API. The final
+database and cleaned review snapshot preserve the loaded review corpus used for
+the demo; the checked-out `data/raw/amazon_reviews.csv` alone is a smaller
+source subset and is not sufficient to recreate the current cleaned review table
+without the original full review source.
 
 ## Directory Map
 
@@ -50,7 +52,6 @@ because no matching product is present.
 |-- database/            Schema, performance DDL, and materialized-view refresh SQL
 |-- docs/                Final report, slides, demo script, ER diagram, timings
 |-- docs/benchmarks/     Benchmark JSON outputs and captured EXPLAIN plans
-|-- docs/planning/       Working notes kept for project history
 |-- docs/reference/      Course rubric and guideline PDFs
 |-- notebooks/           EDA notebook used for milestone evidence
 |-- scripts/             Operational Node.js utilities for benchmarks and refreshes
@@ -175,9 +176,23 @@ Every route preserves the optimized query-mode contract:
 - Slides: `docs/slides.md` and `docs/slides.pdf`
 - Demo script: `docs/demo_script.md`
 - ER diagram: `docs/er_diagram.svg` and `docs/er_diagram.png`
-- API spec: `docs/api_spec.pdf`
+- API spec: `docs/reference/api_spec.pdf`
 - Performance timings: `docs/timings.md`
 - EDA evidence: `notebooks/eda.ipynb`
+
+## Packaging
+
+After committing the final code, create the submission archive from tracked
+files:
+
+```bash
+git archive --format=zip --output axiom-submission.zip HEAD
+```
+
+Do not zip the working directory directly. Keep `.env`, data CSVs,
+`node_modules/`, `venv/`, coverage reports, and build output out of the archive.
+Submit database credentials separately through the course-required channel;
+`.env.example` is the only environment file intended for the code package.
 
 ## Deployment
 

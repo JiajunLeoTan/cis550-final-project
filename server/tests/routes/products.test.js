@@ -2,6 +2,11 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import pool from '../../db.js';
 import app from '../../index.js';
+import {
+  topValueProductsQueryOptimized,
+  trendingProductsQuery,
+  trendingProductsQueryOptimized
+} from '../../queries/products/index.js';
 
 const VALID_ASIN = 'B0719KWG8H';
 
@@ -291,7 +296,15 @@ describe('GET /products/trending', () => {
   it('honors a custom months window in the optimized branch', async () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
     await request(app).get('/products/trending?category=Beauty&months=6&optimized=1');
+    expect(pool.query.mock.calls[0][0]).toBe(trendingProductsQuery);
     expect(pool.query.mock.calls[0][1]).toEqual(['Beauty', 6]);
+  });
+
+  it('uses the materialized view when optimized mode has no explicit months', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    await request(app).get('/products/trending?category=Beauty&optimized=1');
+    expect(pool.query.mock.calls[0][0]).toBe(trendingProductsQueryOptimized);
+    expect(pool.query.mock.calls[0][1]).toEqual(['Beauty', 3]);
   });
 
   it('rejects non-integer months', async () => {
@@ -323,6 +336,13 @@ describe('GET /products/top-value', () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
     await request(app).get('/products/top-value?reviewedSince=2020-01-01');
     expect(pool.query.mock.calls[0][1][0]).toMatch(/^2020-01-01/);
+  });
+
+  it('uses the optimized top-value SQL while passing reviewedSince through', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+    await request(app).get('/products/top-value?reviewedSince=2018-01-01&optimized=1');
+    expect(pool.query.mock.calls[0][0]).toBe(topValueProductsQueryOptimized);
+    expect(pool.query.mock.calls[0][1][0]).toMatch(/^2018-01-01/);
   });
 
   it('rejects an invalid reviewedSince', async () => {

@@ -98,7 +98,7 @@ describe('Analytics', () => {
       screen.getByRole('heading', { name: /Brand leaderboard/ })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('heading', { name: /Verified vs unverified/ })
+      screen.getByRole('heading', { name: /High-activity vs lower-activity/ })
     ).toBeInTheDocument();
   });
 
@@ -125,8 +125,8 @@ describe('Analytics', () => {
     expect(api.reviewsTrend.mock.calls[0][0]).toEqual({ category: 'Beauty' });
     expect(await screen.findByText(/220/)).toBeInTheDocument();
     expect(screen.getByText('Reviews')).toBeInTheDocument();
-    expect(screen.getByText('Verified avg')).toBeInTheDocument();
-    expect(screen.getByText('Unverified avg')).toBeInTheDocument();
+    expect(screen.getByText('High-activity avg')).toBeInTheDocument();
+    expect(screen.getByText('Lower-activity avg')).toBeInTheDocument();
     expect(screen.getByText('Gap')).toBeInTheDocument();
   });
 
