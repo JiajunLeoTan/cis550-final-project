@@ -1,5 +1,7 @@
 # Demo Video Script
 
+For code-level explanations behind the demo, use `docs/code_walkthrough.md`.
+
 Target length: 2 to 4 minutes.
 
 ## 0:00-0:20 Home and Search

@@ -1,5 +1,5 @@
-// Product existence check (used by routes that need a 404 vs 200 distinction
-// before running heavier joins) and the storefront search-by-title query.
+// Product lookup helpers for routes that need a clear 404 before doing heavier
+// product-specific work, plus the storefront title search.
 
 const productExistsQuery = `
   SELECT 1
@@ -23,7 +23,7 @@ const searchProductsQuery = `
   LIMIT $3::int OFFSET $4::int;
 `;
 
-// LIMIT 1 lets the planner stop on the first PK match.
+// The existence route only needs to know whether one row is present.
 const productExistsQueryOptimized = `
   SELECT 1
   FROM products
@@ -31,8 +31,7 @@ const productExistsQueryOptimized = `
   LIMIT 1;
 `;
 
-// Depends on idx_products_title_trgm (pg_trgm GIN) for fast substring search.
-// LIMIT keeps the UI path bounded after the indexed title filter.
+// The trigram index makes substring search usable over the large product table.
 const searchProductsQueryOptimized = `
   SELECT
     asin,

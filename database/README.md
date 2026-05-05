@@ -3,6 +3,9 @@
 This directory contains the SQL files needed to create, optimize, and maintain
 the PostgreSQL database used by Axiom.
 
+For a detailed explanation of the tables, views, and refresh flow, see
+[`../docs/code_walkthrough.md`](../docs/code_walkthrough.md#database).
+
 ## Files
 
 - `schema.sql` - Full bootstrap schema for a clean database. It drops and

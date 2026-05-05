@@ -7,9 +7,8 @@ const cartSavingsQuery = `
   WHERE asin = ANY($1::text[]);
 `;
 
-// SUM ignores NULLs natively, so the per-row COALESCE wrappers are wasted
-// CPU on every cart item. Only the outer COALESCE for the empty-cart case
-// is needed.
+// SUM already skips NULL values, so the optimized query only keeps COALESCE for
+// the empty-cart result.
 const cartSavingsQueryOptimized = `
   SELECT
     COALESCE(SUM(list_price), 0)::float AS total_list_price,

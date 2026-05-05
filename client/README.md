@@ -2,6 +2,9 @@
 
 React + Vite single-page app that consumes the Express backend in [../server](../server).
 
+For a page/component-level walkthrough, see
+[`../docs/code_walkthrough.md`](../docs/code_walkthrough.md#client).
+
 ## Quick start
 
 ```bash

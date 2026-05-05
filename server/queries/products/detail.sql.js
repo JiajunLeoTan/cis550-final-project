@@ -1,5 +1,5 @@
-// Product detail page queries: rating distribution, top helpful reviews, and
-// "better and cheaper" alternatives.
+// Product-detail side panels: rating distribution, helpful reviews, and cheaper
+// higher-rated alternatives.
 
 const ratingDistributionQuery = `
   SELECT
@@ -72,9 +72,7 @@ const alternativesQuery = `
   LIMIT 5;
 `;
 
-// Aggregate first (≤5 groups), then LEFT JOIN generate_series to pad
-// missing ratings. Avoids row-by-row joining of a series with reviews
-// before grouping.
+// Count actual ratings first, then add missing 1-5 buckets for the chart.
 const ratingDistributionQueryOptimized = `
   WITH counts AS (
     SELECT
@@ -94,9 +92,8 @@ const ratingDistributionQueryOptimized = `
   ORDER BY levels.rating ASC;
 `;
 
-// Take the top 10 reviews first, then look up reviewer stats only for those
-// 10 users via LATERAL. The original aggregates over every user in the
-// reviews table even though only 10 are kept.
+// Rank the product's reviews first, then calculate reviewer stats for only the
+// small set that will be displayed.
 const helpfulReviewsQueryOptimized = `
   WITH top_reviews AS (
     SELECT *
@@ -126,9 +123,8 @@ const helpfulReviewsQueryOptimized = `
   ORDER BY tr.helpful_vote DESC, tr.review_timestamp DESC NULLS LAST, tr.review_id ASC;
 `;
 
-// Replace the JOIN target CTE with scalar subqueries on the PK lookup.
-// Eliminates the cross-join with target and turns price/stars comparisons
-// into clean predicates against a constant.
+// The target product is a primary-key lookup, so scalar subqueries keep the
+// comparison simple for the planner.
 const alternativesQueryOptimized = `
   SELECT
     p.asin,

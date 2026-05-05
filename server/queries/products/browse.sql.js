@@ -1,5 +1,5 @@
-// Category page and brand page listings. Both use the same "proven products
-// first" ordering (4+ stars and ≥1 review rank above the rest).
+// Category and brand listings share the same "proven products first" sort:
+// 4+ stars with at least one review, then other reviewed/high-rated products.
 
 const categoryProductsQuery = `
   SELECT
@@ -81,9 +81,8 @@ const brandProductsQuery = `
   LIMIT $4::int OFFSET $5::int;
 `;
 
-// Resolve the category once, take the proven-product page slice, then join
-// display tables only for the selected page. Uses idx_products_category_proven
-// when the performance DDL has been applied.
+// Resolve the category once, page the product table first, then join display
+// names only for the rows the UI will show.
 const categoryProductsQueryOptimized = `
   WITH target_category AS (
     SELECT category_id, category_name
@@ -154,9 +153,8 @@ const categoryProductsQueryOptimized = `
     pp.asin ASC;
 `;
 
-// Resolve the brand once, take the proven-product page slice, then join
-// display tables only for selected rows. Uses idx_products_brand_proven when
-// available, and falls back cleanly to idx_products_brand otherwise.
+// Same idea for brands: find the brand ID once, page products, then attach the
+// category name for the selected rows.
 const brandProductsQueryOptimized = `
   WITH target_brand AS (
     SELECT brand_id, brand_name

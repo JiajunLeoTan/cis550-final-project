@@ -1,30 +1,28 @@
--- CIS 5500 — Data-Driven Shopping Assistant
--- Database Schema
--- Run this ONCE on AWS RDS PostgreSQL instance before ingesting data.
+-- Database schema for the Axiom shopping assistant.
+-- The ingestion script applies this before loading cleaned CSVs.
 
--- Drop existing tables (in reverse dependency order) if re-creating
+-- Drop children first so a reload starts from a clean set of tables.
 DROP TABLE IF EXISTS Reviews CASCADE;
 DROP TABLE IF EXISTS Users CASCADE;
 DROP TABLE IF EXISTS Products CASCADE;
 DROP TABLE IF EXISTS Brands CASCADE;
 DROP TABLE IF EXISTS Categories CASCADE;
 
--- Categories (from amazon_categories.csv — uses original IDs, not SERIAL)
+-- Category IDs come from amazon_categories.csv, so they are not generated here.
 CREATE TABLE Categories (
     category_id INTEGER PRIMARY KEY,
     category_name VARCHAR(255) NOT NULL UNIQUE
 );
 
--- Brands (extracted from product titles during cleaning)
+-- Brands are extracted during cleaning because the product export has no brand table.
 CREATE TABLE Brands (
     brand_id INTEGER PRIMARY KEY,
     brand_name VARCHAR(255) NOT NULL UNIQUE
 );
 
 -- Products
--- Note: `bought_in_last_month` is intentionally omitted. The US asaniczka
--- 1.4M dataset does not include that field. Recent-popularity queries
--- compute `recent_review_count` on the fly from Reviews.review_timestamp.
+-- `bought_in_last_month` is not in the US asaniczka 1.4M export. Recent
+-- popularity comes from Reviews.review_timestamp instead.
 CREATE TABLE Products (
     asin VARCHAR(20) PRIMARY KEY,
     title VARCHAR(1024),
@@ -57,7 +55,7 @@ CREATE TABLE Reviews (
     review_timestamp TIMESTAMP
 );
 
--- Indexes for common query patterns
+-- Basic indexes used by the original query paths and foreign-key lookups.
 CREATE INDEX idx_products_category ON Products(category_id);
 CREATE INDEX idx_products_brand ON Products(brand_id);
 CREATE INDEX idx_products_stars ON Products(stars);
@@ -65,8 +63,7 @@ CREATE INDEX idx_products_price ON Products(price);
 CREATE INDEX idx_reviews_asin ON Reviews(asin);
 CREATE INDEX idx_reviews_user ON Reviews(user_id);
 CREATE INDEX idx_reviews_rating ON Reviews(rating);
--- Optimization indexes for final delivery. Capture pre-optimization timings
--- before applying this block, then rebuild with these indexes for post timings.
+-- Extra indexes used by the optimized path and benchmark comparison.
 CREATE INDEX idx_reviews_asin_timestamp ON Reviews(asin, review_timestamp);
 CREATE INDEX idx_reviews_timestamp ON Reviews(review_timestamp);
 CREATE INDEX idx_products_category_price ON Products(category_id, price);
@@ -103,7 +100,7 @@ CREATE INDEX IF NOT EXISTS idx_products_brand_proven
     );
 CREATE INDEX idx_reviews_verified ON Reviews(verified_purchase) WHERE verified_purchase = TRUE;
 
--- Performance optimization structures for final delivery.
+-- Precomputed structures for the optimized analytics and ranking routes.
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE INDEX IF NOT EXISTS idx_products_title_trgm

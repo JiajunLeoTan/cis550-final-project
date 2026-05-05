@@ -36,7 +36,7 @@ async function request(path, { method = 'GET', body, signal } = {}) {
       const data = await res.json();
       if (data && data.error) message = data.error;
     } catch {
-      /* noop */
+      /* Some failures return an empty or non-JSON body; keep the status message. */
     }
     const err = new Error(message);
     err.status = res.status;

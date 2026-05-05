@@ -81,8 +81,7 @@ const reviewsTrendQuery = `
   ORDER BY review_month ASC;
 `;
 
-// --- Optimised variants ---
-// Served from a materialized view populated by database/refresh_matviews.sql.
+// Optimized path: read the category summary that refresh_matviews.sql keeps warm.
 const categoriesCompareQueryOptimized = `
   SELECT
     category_name,
@@ -93,7 +92,7 @@ const categoriesCompareQueryOptimized = `
   ORDER BY category_name ASC;
 `;
 
-// Served from a materialized view populated by database/refresh_matviews.sql.
+// Same output shape as the original query, but backed by the brand summary view.
 const brandsPerformanceQueryOptimized = `
   SELECT
     brand_name,
@@ -108,10 +107,8 @@ const brandsPerformanceQueryOptimized = `
   ORDER BY avg_review_score DESC, total_helpful_votes DESC, brand_name ASC;
 `;
 
-// Credibility = verified_purchase (a per-review flag), so there is no
-// reviewer_stats CTE or self-join on reviews to optimize away. The plain
-// query is already a single grouped scan; the route-level cache handles
-// repeat hits.
+// This query is already a single grouped scan over verified_purchase. The
+// optimized route keeps the same SQL and relies on route-level caching.
 const reviewsTrendQueryOptimized = reviewsTrendQuery;
 
 module.exports = {

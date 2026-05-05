@@ -1,5 +1,5 @@
-// Deals page: products currently priced below their list price, ordered by
-// discount percentage.
+// Deals are products with a current price below list price, sorted by the size
+// of that discount.
 
 const dealsQuery = `
   SELECT
@@ -24,7 +24,8 @@ const dealsQuery = `
   LIMIT $3::int OFFSET $4::int;
 `;
 
-// Add LIMIT and drop the dead NULLIF (list_price > 0 is already enforced).
+// The WHERE clause already proves list_price is positive, so the optimized path
+// can order by the raw discount expression.
 const dealsQueryOptimized = `
   SELECT
     p.asin,

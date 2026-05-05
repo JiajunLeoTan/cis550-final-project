@@ -1,17 +1,11 @@
 """
-CIS 5500 — Data-Driven Shopping Assistant
-Guest User Creation Script
+Refresh the read-only PostgreSQL account used for demos and grading.
 
-Usage:
-    1. Fill in .env with your database and guest credentials.
-    2. Run from the project root:
-         python data_pipeline/create_guest_user.py
+Run from the project root after .env has database and guest credentials:
+    python data_pipeline/create_guest_user.py
 
-This script:
-    - Connects to your PostgreSQL database
-    - Creates or updates the guest login from .env
-    - Grants the guest read-only access to all current tables
-    - Grants default read-only access to future tables in schema public
+The ingestion script can also create this account; this smaller script is handy
+when the password or grants need to be re-applied without reloading data.
 """
 
 import os
@@ -31,7 +25,7 @@ DB_CONFIG = {
 
 
 def get_connection():
-    """Create and return a database connection."""
+    """Open a database connection with autocommit for role/grant changes."""
     print(f"Connecting to {DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['dbname']}...")
     conn = psycopg2.connect(**DB_CONFIG)
     conn.autocommit = True
@@ -39,7 +33,7 @@ def get_connection():
 
 
 def create_or_update_guest_user(conn):
-    """Create or update a read-only guest account."""
+    """Make sure the guest role can log in and read tables in public."""
     guest_user = os.getenv("GUEST_USER", "guest")
     guest_pass = os.getenv("GUEST_PASSWORD", "changeme")
     db_name = DB_CONFIG["dbname"]

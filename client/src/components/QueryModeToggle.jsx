@@ -8,7 +8,7 @@ export default function QueryModeToggle() {
     if (next === mode) return;
     setQueryMode(next);
     setMode(next);
-    // Reload so every in-flight hook refetches under the new mode.
+    // The mode changes every endpoint URL, so a reload gives each page a clean fetch.
     window.location.reload();
   }
 
@@ -16,8 +16,8 @@ export default function QueryModeToggle() {
     <div
       className="query-toggle"
       role="group"
-      aria-label="Query mode: pre-optimised or optimised"
-      title="Toggle pre-optimised vs optimised SQL queries"
+      aria-label="Query mode: standard or optimized"
+      title="Toggle standard vs optimized SQL queries"
     >
       <button
         type="button"

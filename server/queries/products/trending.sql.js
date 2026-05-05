@@ -27,8 +27,8 @@ const trendingProductsQuery = `
   LIMIT 15;
 `;
 
-// Uses the value-components materialized view's data-relative recent-review
-// count and idx_mv_value_components_trending for category top-N.
+// The materialized view stores a data-relative recent-review count, so the
+// optimized path can read the top category rows directly.
 const trendingProductsQueryOptimized = `
   WITH top_products AS (
     SELECT

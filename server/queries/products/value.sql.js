@@ -1,6 +1,5 @@
-// Value-ranking complex queries. Both unoptimized variants are intentionally
-// expensive so the optimization pass against the mv_value_score_components
-// materialized view shows a meaningful timing delta in the report.
+// Value-ranking queries. The original versions do the scoring work live; the
+// optimized versions read the same ingredients from mv_value_score_components.
 
 const topValueProductsQuery = `
   -- Intentionally left as correlated subqueries so Milestone 5 can optimize it later.
@@ -156,9 +155,8 @@ const valueRankingsQuery = `
   LIMIT 100;
 `;
 
-// Uses mv_value_score_components. The route still accepts reviewedSince, but
-// the optimized path uses the materialized view's data-relative 12-month
-// review window so top-value can be served without scanning Reviews.
+// The route still accepts reviewedSince for the shared API contract. The
+// optimized path uses the materialized view's data-relative review window.
 const topValueProductsQueryOptimized = `
   SELECT
     m.asin,
@@ -179,9 +177,8 @@ const topValueProductsQueryOptimized = `
   LIMIT 100;
 `;
 
-// Uses mv_value_score_components for static normalized inputs. The common
-// demo/report weights (0.4/0.2/0.2/0.2) use an indexed precomputed score;
-// arbitrary weights fall back to dynamic scoring over the narrow matview.
+// Default demo weights can use the indexed precomputed score. Custom weights
+// still re-score, but over the narrow materialized view instead of base tables.
 const valueRankingsQueryOptimized = `
   WITH default_weighted AS (
     SELECT

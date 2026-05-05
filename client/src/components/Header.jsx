@@ -7,7 +7,6 @@ export default function Header() {
     <header className="site-header">
       <div className="container nav">
         <Link to="/" className="brand" aria-label="Axiom home">
-          {/* TODO: consider a project-specific publication name before final submission. */}
           <span>Axiom</span>
         </Link>
         <nav className="nav-links" aria-label="Primary">

@@ -33,16 +33,13 @@ const getProductDetailQuery = `
   WHERE p.asin = $1;
 `;
 
-// --- Optimised variants ---
-// listCategories / listBrands SQL is unchanged (already a tiny index-ordered
-// scan); the optimised path uses a route-level in-memory cache so most
-// requests skip the DB roundtrip entirely.
+// Categories and brands are already cheap to read; the optimized route mainly
+// avoids repeat database trips with the in-memory route cache.
 const listCategoriesQueryOptimized = listCategoriesQuery;
 const listBrandsQueryOptimized = listBrandsQuery;
 
-// Replace the two LEFT JOINs with scalar subqueries. For a single-row PK
-// lookup this avoids the join setup and lets the planner do two extra PK
-// seeks on the small lookup tables.
+// Product detail is a single-row lookup, so scalar lookups keep the display
+// names without setting up two joins.
 const getProductDetailQueryOptimized = `
   SELECT
     p.asin,

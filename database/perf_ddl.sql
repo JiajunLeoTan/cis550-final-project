@@ -1,3 +1,6 @@
+-- Apply or rebuild the performance pieces on an already-loaded database.
+-- schema.sql includes the same structures for a fresh bootstrap.
+
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 CREATE INDEX IF NOT EXISTS idx_products_title_trgm

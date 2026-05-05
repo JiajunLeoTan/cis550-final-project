@@ -19,7 +19,7 @@ export function CartProvider({ children }) {
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
     } catch {
-      /* ignore */
+      /* localStorage can fail in private browsing or tests; the in-memory cart still works. */
     }
   }, [items]);
 

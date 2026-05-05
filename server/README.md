@@ -2,6 +2,9 @@
 
 Express.js backend for the Data-Driven Shopping Assistant Milestone 4 API.
 
+For the route/module walkthrough, see
+[`../docs/code_walkthrough.md`](../docs/code_walkthrough.md#server).
+
 ## Setup
 
 Run these commands from the project root:

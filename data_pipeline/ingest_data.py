@@ -1,18 +1,12 @@
 """
-CIS 5500 — Data-Driven Shopping Assistant
-Database Ingestion Script
+Load the cleaned CSV tables into PostgreSQL.
 
-Usage:
-    1. Fill in your .env file with RDS credentials.
-    2. Run the cleaning script first:  python data_pipeline/clean_data.py
-    3. Run this script:                python data_pipeline/ingest_data.py
-       Optional path check only:        python data_pipeline/ingest_data.py --dry-run
+Run the cleaner first, then run this script from the project root:
+    python data_pipeline/clean_data.py
+    python data_pipeline/ingest_data.py
 
-This script:
-    - Connects to your PostgreSQL instance on AWS RDS
-    - Creates all tables (runs database/schema.sql)
-    - Loads cleaned CSVs in dependency order using COPY for speed
-    - Validates row counts after loading
+Use --dry-run to check that schema.sql and the cleaned CSVs exist without
+opening a database connection.
 """
 
 import os
@@ -25,9 +19,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# ---------------------------------------------------------------------------
-# CONFIGURATION
-# ---------------------------------------------------------------------------
+# Database connection and file locations.
 DB_CONFIG = {
     "host": os.getenv("DB_HOST", "localhost"),
     "port": os.getenv("DB_PORT", "5432"),
@@ -39,7 +31,8 @@ DB_CONFIG = {
 CLEAN_DIR = os.path.join("data", "cleaned")
 SCHEMA_FILE = os.path.join("database", "schema.sql")
 
-# Tables in dependency order: parent tables first
+# Parent tables load first so foreign keys are satisfied when products/reviews
+# are copied in.
 TABLES = [
     {
         "name": "Categories",
@@ -78,11 +71,8 @@ TABLES = [
 ]
 
 
-# ---------------------------------------------------------------------------
-# HELPERS
-# ---------------------------------------------------------------------------
 def get_connection():
-    """Create and return a database connection."""
+    """Open a PostgreSQL connection using the credentials from .env."""
     print(f"Connecting to {DB_CONFIG['host']}:{DB_CONFIG['port']}/{DB_CONFIG['dbname']}...")
     conn = psycopg2.connect(**DB_CONFIG)
     conn.autocommit = False
@@ -90,7 +80,7 @@ def get_connection():
 
 
 def run_schema(conn):
-    """Execute the DDL script to create/recreate all tables."""
+    """Apply schema.sql before loading fresh data."""
     print("\nRunning database/schema.sql...")
     with open(SCHEMA_FILE, "r") as f:
         ddl = f.read()
@@ -101,7 +91,7 @@ def run_schema(conn):
 
 
 def load_table(conn, table_info):
-    """Load a single CSV into the corresponding table using COPY."""
+    """COPY one cleaned CSV into its matching table and return its row count."""
     name = table_info["name"]
     filepath = os.path.join(CLEAN_DIR, table_info["file"])
     columns = table_info["columns"]
@@ -114,9 +104,8 @@ def load_table(conn, table_info):
     start = time.time()
 
     with conn.cursor() as cur:
-        # Use COPY for fast bulk loading
         with open(filepath, "r", encoding="utf-8") as f:
-            # Skip the header row
+            # COPY receives only data rows; pandas wrote a header to each CSV.
             next(f)
             cur.copy_expert(
                 sql.SQL("COPY {} ({}) FROM STDIN WITH (FORMAT CSV, NULL '')").format(
@@ -127,7 +116,7 @@ def load_table(conn, table_info):
             )
     conn.commit()
 
-    # Get row count
+    # Confirm what PostgreSQL actually received, not just what the CSV contained.
     with conn.cursor() as cur:
         cur.execute(sql.SQL("SELECT COUNT(*) FROM {}").format(sql.Identifier(name.lower())))
         count = cur.fetchone()[0]
@@ -138,7 +127,7 @@ def load_table(conn, table_info):
 
 
 def validate(conn):
-    """Run basic validation queries after loading."""
+    """Check the relationships that matter most after a fresh load."""
     print("\n=== Validation ===")
     checks = [
         ("Orphan products (bad category_id)",
@@ -181,7 +170,7 @@ def validate(conn):
 
 
 def validate_input_files():
-    """Verify the schema and cleaned CSV files exist before loading."""
+    """Fail early if the cleaner has not produced the expected inputs."""
     missing = []
 
     if not os.path.exists(SCHEMA_FILE):
@@ -206,7 +195,7 @@ def validate_input_files():
 
 
 def create_guest_user(conn):
-    """Create a read-only guest account for Milestone 3 submission."""
+    """Create or refresh the read-only login used for project review."""
     guest_user = os.getenv("GUEST_USER", "guest")
     guest_pass = os.getenv("GUEST_PASSWORD", "changeme")
     db_name = DB_CONFIG["dbname"]
@@ -263,9 +252,6 @@ def create_guest_user(conn):
     print(f"  Include these credentials in your Milestone 3 submission.")
 
 
-# ---------------------------------------------------------------------------
-# MAIN
-# ---------------------------------------------------------------------------
 def main():
     print("=" * 60)
     print("  CIS 5500 — Database Ingestion Pipeline")
@@ -281,10 +267,8 @@ def main():
     conn = get_connection()
 
     try:
-        # 1. Create schema
         run_schema(conn)
 
-        # 2. Load tables in order
         print("\n=== Loading Data ===")
         total_start = time.time()
         total_rows = 0
@@ -294,10 +278,8 @@ def main():
         total_elapsed = time.time() - total_start
         print(f"\n  Total: {total_rows:,} rows loaded in {total_elapsed:.1f}s")
 
-        # 3. Validate
         validate(conn)
 
-        # 4. Create guest user
         create_guest_user(conn)
 
     except Exception as e:

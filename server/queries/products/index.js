@@ -1,7 +1,5 @@
-// Barrel module re-exporting every product-related SQL string.
-// Each sub-file groups one feature (search, deals, browse listings, detail
-// page, trending, value rankings) and contains both its original and its
-// optimized variant so the optimization deltas are easy to read side by side.
+// Keep product SQL grouped by feature, but export it from one place for routes
+// and benchmark scripts.
 
 module.exports = {
   ...require('./search.sql'),

@@ -9,6 +9,9 @@ The app is organized as a React/Vite frontend, an Express API, and a PostgreSQL
 database loaded from cleaned Amazon product, review, category, brand, and user
 CSV files.
 
+For a file-by-file explanation of the code and data flow, see
+[`docs/code_walkthrough.md`](docs/code_walkthrough.md).
+
 ## Stack
 
 - Frontend: React, Vite, React Router, custom SVG charts
