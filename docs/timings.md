@@ -6,20 +6,20 @@ Timing cells are `min / median / max` milliseconds across 5 measured `EXPLAIN AN
 
 | query | input | pre-opt ms | post-opt ms | speedup | EXPLAIN cost ratio |
 |---|---|---:|---:|---:|---:|
-| GET /categories | none | 0.4 / 0.4 / 0.4 | 0.4 / 0.4 / 0.4 | 1.00x | 1.00x |
-| GET /brands | none | 5.8 / 5.8 / 5.9 | 5.8 / 5.9 / 6.1 | 1.00x | 1.00x |
-| GET /products/:asin | asin=B0719KWG8H | 0.1 / 0.1 / 0.1 | 0.1 / 0.1 / 0.1 | 1.00x | 1.00x |
-| GET /products/search | keyword=makone, minStars=4 | 1.6 / 1.6 / 1.6 | 1.6 / 1.7 / 1.7 | 1.00x | 1.00x |
-| GET /deals | maxPrice=250 | 12284.1 / 14769.5 / 15999.3 | 0.4 / 0.5 / 18.3 | 31899.54x | 106.48x |
-| GET /products/:asin/rating-distribution | asin=B0719KWG8H | 1.3 / 1.4 / 1.9 | 1.0 / 1.1 / 7.4 | 1.00x | 1.04x |
-| GET /products/:asin/helpful-reviews | asin=B0719KWG8H | 21.6 / 21.7 / 39.9 | 1.1 / 1.1 / 1.1 | 19.80x | 2.78x |
-| GET /products/:asin/alternatives | asin=B0719KWG8H | 1.4 / 1.4 / 5.7 | 0.3 / 0.3 / 0.3 | 4.87x | 24.20x |
+| GET /categories | none | 0.3 / 0.4 / 0.4 | 0.3 / 0.3 / 0.4 | 1.00x | 1.00x |
+| GET /brands | none | 5.8 / 6.0 / 7.7 | 5.8 / 5.9 / 5.9 | 1.00x | 1.00x |
+| GET /products/:asin | asin=B0178IC734 | 0.1 / 0.1 / 0.1 | 0.1 / 0.1 / 0.1 | 1.00x | 1.00x |
+| GET /products/search | keyword=kasa, minStars=4 | 1.2 / 1.2 / 1.3 | 1.2 / 1.2 / 1.2 | 1.00x | 1.00x |
+| GET /deals | maxPrice=250 | 0.5 / 0.5 / 0.6 | 0.4 / 0.5 / 0.5 | 1.00x | 1.00x |
+| GET /products/:asin/rating-distribution | asin=B0178IC734 | 7.9 / 8.0 / 8.2 | 6.6 / 6.7 / 7.2 | 1.19x | 1.01x |
+| GET /products/:asin/helpful-reviews | asin=B0178IC734 | 8886.7 / 9118.3 / 9260.7 | 7.0 / 7.1 / 7.2 | 1290.44x | 26.47x |
+| GET /products/:asin/alternatives | asin=B0178IC734 | 5.6 / 5.6 / 5.7 | 0.5 / 0.5 / 0.5 | 11.40x | 24.14x |
 | POST /cart/savings | asins=B00T0C9XRK,B09MV3KMPT,B07PH22TG9,B07VMNJHBK,B09JVTQKDN | 0.1 / 0.1 / 0.1 | 0.1 / 0.1 / 0.1 | 1.00x | 1.00x |
-| GET /analytics/categories/compare | none | 1922.3 / 1962.4 / 2030.5 | 0.4 / 0.4 / 0.4 | 5110.40x | 5071.94x |
-| GET /products/trending | category=Hair Care Products, default dataset window | 28.9 / 30.3 / 33.8 | 6.0 / 7.5 / 8.9 | 4.06x | 22.56x |
-| GET /products/top-value | reviewedSince=2018-01-01 | 448.0 / 449.7 / 470.2 | 0.8 / 0.9 / 0.9 | 527.20x | 3049.04x |
-| GET /analytics/brands/performance | none | 454.1 / 457.2 / 464.3 | 0.0 / 0.1 / 0.1 | 9143.14x | 109989.40x |
-| GET /analytics/reviews/trend | category=Hair Care Products | 11.8 / 11.9 / 15.1 | 11.7 / 11.8 / 11.8 | 1.00x | 1.00x |
-| GET /products/value-rankings | weights=0.4/0.2/0.2/0.2 | 9069.9 / 9363.9 / 9389.3 | 1.4 / 1.4 / 10.1 | 6741.49x | 591.52x |
+| GET /analytics/categories/compare | none | 2695.9 / 3113.5 / 3140.2 | 0.4 / 0.4 / 0.4 | 7962.92x | 5071.06x |
+| GET /products/trending | category=Toys & Games, default dataset window | 1879.7 / 1904.6 / 2049.9 | 9.7 / 9.7 / 12.3 | 195.98x | 131.77x |
+| GET /products/top-value | reviewedSince=2018-01-01 | 322837.9 / 324918.8 / 326549.2 | 494.0 / 855.3 / 2101.7 | 379.87x | 497.84x |
+| GET /analytics/brands/performance | none | 2315.8 / 2366.2 / 2993.1 | 2.7 / 3.7 / 4.5 | 643.68x | 927.14x |
+| GET /analytics/reviews/trend | category=Toys & Games | 4531.2 / 4601.9 / 7601.7 | 4717.3 / 4853.4 / 5471.2 | 0.95x | 1.00x |
+| GET /products/value-rankings | weights=0.4/0.2/0.2/0.2 | 15197.4 / 17047.1 / 18581.4 | 1.4 / 1.4 / 2.1 | 12133.17x | 686.00x |
 
 Representative inputs are selected from the loaded database: the category with the most linked reviews, an ASIN with more than 50 reviews when available, and fixed weights `0.4/0.2/0.2/0.2` for value ranking.

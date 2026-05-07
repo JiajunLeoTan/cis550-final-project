@@ -198,13 +198,17 @@ Submit database credentials separately through the course-required channel;
 
 ## Deployment
 
-Live URL: TBD after deployment.
+Live deployment configuration:
 
-Recommended deployment split:
+- API base URL: `https://team45-cis550-final-project.vercel.app`
+- Allowed client origin: `https://cis550-final-project.onrender.com`
 
-- Backend: Render or Fly.io with the root `.env` variables configured,
-  including `CLIENT_ORIGIN` set to the deployed frontend URL.
-- Frontend: Vercel with `VITE_API_BASE_URL` set to the deployed backend URL.
+Deployment environment mapping:
+
+- Backend/API environment: set
+  `CLIENT_ORIGIN=https://cis550-final-project.onrender.com`.
+- Frontend build environment: set
+  `VITE_API_BASE_URL=https://team45-cis550-final-project.vercel.app`.
   `VITE_API_BASE_URL` points frontend to backend; `CLIENT_ORIGIN` lets backend
   accept browser requests from frontend.
 - Database: AWS RDS PostgreSQL with schema, indexes, materialized views, and
