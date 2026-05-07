@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 const { api } = vi.hoisted(() => ({
@@ -44,6 +44,26 @@ function renderApp(path) {
   );
 }
 
+beforeEach(() => {
+  api.categories.mockReset().mockResolvedValue([]);
+  api.brands.mockReset().mockResolvedValue([]);
+  api.product.mockReset().mockResolvedValue(null);
+  api.searchProducts.mockReset().mockResolvedValue([]);
+  api.deals.mockReset().mockResolvedValue([]);
+  api.categoryProducts.mockReset().mockResolvedValue([]);
+  api.brandProducts.mockReset().mockResolvedValue([]);
+  api.ratingDistribution.mockReset().mockResolvedValue([]);
+  api.helpfulReviews.mockReset().mockResolvedValue([]);
+  api.alternatives.mockReset().mockResolvedValue([]);
+  api.trending.mockReset().mockResolvedValue([]);
+  api.topValue.mockReset().mockResolvedValue([]);
+  api.valueRankings.mockReset().mockResolvedValue([]);
+  api.cartSavings.mockReset().mockResolvedValue({});
+  api.categoriesCompare.mockReset().mockResolvedValue([]);
+  api.brandsPerformance.mockReset().mockResolvedValue([]);
+  api.reviewsTrend.mockReset().mockResolvedValue([]);
+});
+
 describe('App routing', () => {
   it('renders Home at /', () => {
     renderApp('/');
@@ -58,6 +78,40 @@ describe('App routing', () => {
   it('renders Deals at /deals', async () => {
     renderApp('/deals');
     expect(await screen.findByRole('heading', { name: 'Deals.' })).toBeInTheDocument();
+  });
+
+  it('renders CategoryPage at /category/:categoryName with the decoded category', async () => {
+    renderApp('/category/Beauty');
+
+    expect(
+      await screen.findByText(/No products found for this category/i)
+    ).toBeInTheDocument();
+    await waitFor(() => expect(api.categoryProducts).toHaveBeenCalled());
+    expect(api.categoryProducts.mock.calls[0][0]).toMatchObject({
+      category: 'Beauty',
+      limit: 24,
+      offset: 0
+    });
+  });
+
+  it('renders BrandPage at /brand/:brandName with the decoded brand', async () => {
+    renderApp('/brand/Aveeno');
+
+    expect(await screen.findByText(/No products found for this brand/i)).toBeInTheDocument();
+    await waitFor(() => expect(api.brandProducts).toHaveBeenCalled());
+    expect(api.brandProducts.mock.calls[0][0]).toMatchObject({
+      brand: 'Aveeno',
+      limit: 24,
+      offset: 0
+    });
+  });
+
+  it('renders ProductDetail at /product/:asin with the ASIN', async () => {
+    renderApp('/product/B0719KWG8H');
+
+    expect(await screen.findByText(/Product not found/i)).toBeInTheDocument();
+    await waitFor(() => expect(api.product).toHaveBeenCalled());
+    expect(api.product.mock.calls[0][0]).toBe('B0719KWG8H');
   });
 
   it('renders Cart at /cart', async () => {

@@ -21,12 +21,17 @@
 \newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 
-\title{Axiom Shopping Assistant: CIS 5500 Final Report}
+\title{Team 45: Axiom Shopping Assistant\\[0.2em]\large CIS 5500 Final Report}
 \author{Chenguang Shen, Luis Garcia, Leo Tan, Anika Madan}
 \date{Spring 2026}
 
 \begin{document}
 \maketitle
+\begin{center}
+\textbf{Team Name:} Team 45 \qquad
+\textbf{Application Title:} Axiom Shopping Assistant\\
+\textbf{Group Members:} Chenguang Shen, Luis Garcia, Leo Tan, Anika Madan
+\end{center}
 
 \section{Introduction}
 Axiom is a full-stack shopping analytics application over large Amazon product
@@ -55,7 +60,7 @@ client calls original SQL paths; in optimized mode it appends
 \texttt{?optimized=1}, letting the backend choose optimized SQL or cached
 responses without changing the public API.
 
-\section{Architecture and Application Functionality}
+\section{Architecture}
 The system has three tiers. The frontend is a React/Vite single-page
 application, the backend is an Express server using the Node \texttt{pg} pool,
 and the database is PostgreSQL hosted on AWS RDS. The data pipeline is written
@@ -76,29 +81,13 @@ Testing/ops & Vitest, Supertest, benchmark scripts & Regression tests and timing
 \end{tabularx}
 \end{center}
 
-\subsection{Pages}
-The application has multiple database-backed pages with distinct workflows:
-\begin{itemize}
-  \item \textbf{Home} provides a search entry point, featured proven picks from
-  recent review activity, and discounted products.
-  \item \textbf{Browse} supports keyword search, category discovery, category
-  preview cards, and post-Milestone-4 category/brand product-list pages with
-  URL-backed filters.
-  \item \textbf{Deals} ranks discounted products by percentage off, with price
-  and rating filters.
-  \item \textbf{Category and Brand pages} paginate products for one category or
-  brand and keep filters in the URL.
-  \item \textbf{Product Detail} shows product metadata, rating distribution,
-  reviewer context, cheaper higher-rated alternatives, and cart actions.
-  \item \textbf{Cart} persists selected products in local storage and posts ASINs
-  to the backend for live savings aggregation.
-  \item \textbf{Analytics} visualizes category comparison, brand performance, and
-  monthly review trends by reviewer activity group.
-  \item \textbf{Value Rankings} lets users weight rating strength, review depth,
-  price efficiency, and recent review activity. The Balanced preset uses
-  \texttt{0.4/0.2/0.2/0.2}, matching the indexed default score in the optimized
-  materialized view.
-\end{itemize}
+Browser pages call a small client API wrapper, which appends the global
+\texttt{optimized=1} flag when the user chooses optimized query mode. Express
+route modules validate request input, select the original or optimized SQL
+variant, query PostgreSQL through a shared pool, and return stable JSON response
+shapes. Materialized views and indexes live in the database layer, while the
+frontend remains unaware of whether a response came from an original SQL query,
+an optimized SQL query, or a short-lived cache.
 
 \section{Data}
 The final database integrates product metadata with two review/comment sources:
@@ -132,6 +121,12 @@ The product and review datasets overlap through ASIN and parent-ASIN identifiers
 That overlap is what lets Axiom answer questions that require both sources, such
 as ``Which discounted products also have strong recent review activity?'' and
 ``Which brands have high product ratings and strong linked-review evidence?''
+
+In the application, product metadata drives search, deal cards, category/brand
+pages, and price comparisons. Review rows supply recent-activity signals,
+review histograms, reviewer credibility context, and analytics aggregates.
+Extracted brand and category entities make it possible to compare performance at
+a level above individual products.
 
 \subsection{Cleaning and Summary Statistics}
 The cleaner deduplicates products by ASIN, parses numeric prices and ratings,
@@ -168,21 +163,24 @@ during final ingestion. Those full files are not included in the submission
 archive because of size, but the cleaning code supports the same workflow by
 discovering additional review streams in \texttt{data/raw/}.
 
-\section{Database Design, Ingestion, and Normalization}
+\section{Database}
 The ingestion script applies \texttt{database/schema.sql}, loads cleaned CSVs
 with PostgreSQL \texttt{COPY}, validates foreign-key relationships, and grants a
-read-only guest user. The normalized base schema has five relations:
+read-only guest user. Entity resolution happens before loading: products are
+deduplicated by ASIN, reviews are linked through ASIN or parent ASIN, brands are
+canonicalized from product titles, and orphan review rows are removed. The
+normalized base schema has five relations:
 
 \begin{center}
-\begin{tabularx}{\linewidth}{@{}L{0.16\linewidth}Y@{}}
+\begin{tabularx}{\linewidth}{@{}L{0.14\linewidth}rL{0.16\linewidth}Y@{}}
 \toprule
-Table & Main attributes \\
+Table & Rows & Key & Main attributes \\
 \midrule
-Categories & \texttt{category\_id}, \texttt{category\_name} \\
-Brands & \texttt{brand\_id}, \texttt{brand\_name} \\
-Products & \texttt{asin}, title, URLs, prices, stars, counts, category/brand FKs \\
-Users & \texttt{user\_id} \\
-Reviews & \texttt{review\_id}, ASIN/user FKs, rating, text, helpfulness, timestamp \\
+Categories & 248 & \texttt{category\_id} & \texttt{category\_name} \\
+Brands & 26,484 & \texttt{brand\_id} & \texttt{brand\_name} \\
+Products & 1,426,336 & \texttt{asin} & Title, URLs, prices, stars, counts, category/brand FKs \\
+Users & 1,279,603 & \texttt{user\_id} & Reviewer identifier \\
+Reviews & 2,998,677 & \texttt{review\_id} & ASIN/user FKs, rating, text, helpfulness, timestamp \\
 \bottomrule
 \end{tabularx}
 \end{center}
@@ -217,93 +215,243 @@ left or a prime-attribute exception that does not arise here, so the design is
 in 3NF. The materialized views used for optimization are derived read models,
 not replacement base relations.
 
-\section{Queries}
-The Milestone 4 API Specification in \path{docs/reference/api_spec.pdf}
-documented 15 routes: 12 query-backed primary routes and 3 auxiliary UI routes.
-The final backend preserves those route contracts and now exposes 17 routes
-across metadata, product browsing, product detail, cart, analytics, and ranking
-workflows. The two public routes added after Milestone 4 are
-\path{/products/category} and \path{/products/brand}; they support the final
-Browse, Category, and Brand pages with paginated product lists, rating filters,
-price filters, and stable URL state. The final implementation also adds
-optional pagination/filter parameters where the UI needed them, the
-\texttt{optimized} query-mode flag, and internal optimized SQL/helper queries
-without changing the original Milestone 4 route names.
-
-The report focuses on the most complex query families below, including the
-post-Milestone-4 browse-list routes. Appendix A lists the final API catalog and
-marks each route's Milestone 4 status. Appendix B maps query-backed behavior to
-source files and calls out query families added after the API specification.
+\section{Web App Description}
+The React frontend is a single-page application with pages that exercise
+different database-backed workflows. Each page uses the shared API client, so
+the global query-mode toggle can switch between original and optimized backend
+paths without changing page logic.
 
 \small
-\begin{longtable}{@{}L{0.23\linewidth}L{0.48\linewidth}L{0.23\linewidth}@{}}
+\begin{longtable}{@{}L{0.15\linewidth}L{0.28\linewidth}L{0.48\linewidth}@{}}
 \toprule
-Route / feature & Query idea and application use & Complexity evidence \\
+Page & Main API routes & Distinct functionality \\
 \midrule
 \endhead
-\path{/analytics/brands/performance} &
-Computes brand-level product rating, best-seller count, linked-review count,
-verified-review count, average review score, and helpful-vote total. Powers the
-brand leaderboard. &
-Brands/Products/Reviews joins, CTEs, grouping, HAVING-style filters, ordering. \\
-\path{/analytics/reviews/trend} &
-Groups reviews by month for a category and splits ratings by reviewer activity
-group, exposing a credibility gap over time. &
-Reviewer-count CTE, joins, \texttt{DATE\_TRUNC}, conditional aggregation. \\
-\path{/products/trending} &
-Ranks category products by recent linked review activity, using a data-relative
-12-month window for the optimized default path. &
-Review-horizon CTE, aggregation by ASIN, category/product/brand joins. \\
-\path{/products/top-value} &
-Finds products cheaper than their category average, rated above their category
-average, and recently reviewed since the requested date. &
-Correlated subqueries, EXISTS check, category/product joins, top-k ordering. \\
-\path{/products/value-rankings} &
-Normalizes rating, review count, price efficiency, and recent activity, then
-combines them by user-selected weights. &
-Multiple CTEs, global bounds, category bounds, aggregation, top-k score sorting. \\
-\path{/products/:asin/helpful-reviews} &
-Shows the target product's top reviews with reviewer-level context. &
-Reviewer aggregate CTE in original path; optimized lateral aggregation over top reviews. \\
+Home &
+\path{/products/search}, \path{/products/trending}, \path{/deals} &
+Entry point for search plus quick product discovery through proven picks and
+discounted items. It is optimized for fast first impressions rather than deep
+filtering. \\
+Browse &
+\path{/categories}, \path{/products/search}, \path{/products/category} &
+Combines keyword search with category exploration and URL-backed filters. It
+also links into full category pages when users want more than preview cards. \\
+Deals &
 \path{/deals} &
-Ranks discounted products by percentage off with price/rating filters. &
-Expression sort, partial index opportunity, product/category join. \\
-\path{/products/category}, \path{/products/brand} &
-Return paginated category and brand product lists for the final browsing pages,
-including rating and price filters plus display category/brand names. &
-Product/category/brand joins, filter predicates, pagination, optimized CTEs that
+Focuses on discount ranking, price caps, and star filters. Unlike search, the
+primary sort is deal quality rather than title relevance. \\
+Category and Brand &
+\path{/products/category}, \path{/products/brand}, \path{/categories} &
+Paginated product-list pages for one category or one brand, with rating and
+price filters preserved in the URL. These were added after Milestone 4 because
+the final UI needed stable browse destinations. \\
+Product Detail &
+\path{/products/:asin}, \path{/products/:asin/rating-distribution},
+\path{/products/:asin/helpful-reviews}, \path{/products/:asin/alternatives} &
+Shows one product with review evidence, reviewer context, cheaper higher-rated
+alternatives, and cart actions. This page joins product metadata with review
+analytics. \\
+Cart &
+\path{/cart/savings} &
+Persists selected ASINs in local storage and asks the backend to aggregate list
+price, current price, and savings for the current cart. \\
+Analytics &
+\path{/analytics/categories/compare}, \path{/analytics/brands/performance},
+\path{/analytics/reviews/trend} &
+Visualizes category-level aggregates, brand-level review evidence, and monthly
+review trends. It is the most dashboard-like page and emphasizes comparison. \\
+Value Rankings &
+\path{/products/value-rankings} &
+Lets users weight rating strength, review depth, price efficiency, and recent
+activity. The Balanced preset uses \texttt{0.4/0.2/0.2/0.2}, matching the
+indexed default score in the optimized materialized view. \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\section{API Specification}
+The Milestone 4 API Specification in \path{docs/reference/api_spec.pdf}
+documented 15 routes: 12 query-backed primary routes and 3 auxiliary UI routes.
+The final backend preserves those contracts and executes 17 public routes. The
+two public routes added after Milestone 4 are \path{/products/category} and
+\path{/products/brand}; they support the final Browse, Category, and Brand
+pages. Routes accept an optional \texttt{optimized=1} or
+\texttt{optimized=true} query parameter when an optimized branch exists.
+
+\footnotesize
+\begin{longtable}{@{}L{0.18\linewidth}L{0.26\linewidth}L{0.27\linewidth}L{0.23\linewidth}@{}}
+\toprule
+Method and path & Functionality & Request parameters & Response parameters \\
+\midrule
+\endhead
+GET \path{/categories} &
+M4 auxiliary route. Lists categories for Browse and Analytics selectors. &
+Query: \texttt{optimized} bool optional. &
+\path{category_id} int; \path{category_name} string. \\
+GET \path{/brands} &
+M4 auxiliary route. Lists extracted brands for filters and links. &
+Query: \texttt{optimized} bool optional. &
+\path{brand_id} int; \path{brand_name} string. \\
+GET \path{/products/:asin} &
+M4 auxiliary route. Loads one product before detail-side analytics run. &
+Path: \texttt{asin} string. Query: \texttt{optimized} bool optional. &
+\path{asin}, \path{title}, image/product URLs as strings; \path{price},
+\path{list_price}, \path{stars} as floats; \path{review_count} int;
+\path{is_best_seller} bool; category/brand names as strings. \\
+GET \path{/products/search} &
+M4 query route. Searches product titles and filters by minimum rating. &
+Query: \texttt{keyword} string required; \texttt{minStars} float optional;
+\texttt{limit}, \texttt{offset} int optional. &
+Product rows with ASIN/title/image URL strings, price and stars floats,
+review count int, and best-seller bool. \\
+GET \path{/deals} &
+M4 query route. Ranks discounted products for the Deals page. &
+Query: \texttt{maxPrice} float optional; \texttt{minStars} float optional;
+\texttt{limit}, \texttt{offset} int optional. &
+Product rows with ASIN/title strings, list/current price floats,
+\path{discount_pct} float, stars float, review count int, and category string. \\
+GET \path{/products/category} &
+Post-M4 route. Returns paginated products for one category page. &
+Query: \texttt{category} string required; \texttt{minStars}, \texttt{maxPrice}
+optional; \texttt{limit}, \texttt{offset} int optional. &
+Product-card rows with ASIN/title strings, price/list price/discount/stars
+floats, review count int, best-seller bool, and category/brand strings. \\
+GET \path{/products/brand} &
+Post-M4 route. Returns paginated products for one brand page. &
+Query: \texttt{brand} string required; \texttt{minStars}, \texttt{maxPrice}
+optional; \texttt{limit}, \texttt{offset} int optional. &
+Product-card rows with ASIN/title strings, price/list price/discount/stars
+floats, review count int, best-seller bool, and category/brand strings. \\
+GET \path{/products/:asin/rating-distribution} &
+M4 query route. Builds the product-detail rating histogram. &
+Path: \texttt{asin} string. Query: \texttt{optimized} bool optional. &
+\path{rating} float; \path{review_count} int; \path{verified_ratio} float. \\
+GET \path{/products/:asin/helpful-reviews} &
+M4 query route. Shows top reviews with reviewer credibility context. &
+Path: \texttt{asin} string. Query: \texttt{optimized} bool optional. &
+\path{review_id} int; rating float; title/text strings; helpful votes int;
+verified bool; timestamp; reviewer total reviews int and average rating float. \\
+GET \path{/products/:asin/alternatives} &
+M4 query route. Finds cheaper, higher-rated products in the same category. &
+Path: \texttt{asin} string. Query: \texttt{optimized} bool optional. &
+Alternative rows with ASIN/title/image URL strings, price/stars floats, review
+count int, and category string. \\
+POST \path{/cart/savings} &
+M4 query route. Aggregates list price, current price, and savings for a cart. &
+Body: \texttt{asins} array of strings, maximum 200. Query:
+\texttt{optimized} bool optional. &
+\path{total_list_price}, \path{total_current_price}, and \path{total_savings}
+as floats. \\
+GET \path{/analytics/categories/compare} &
+M4 query route. Computes category-level price, rating, and count metrics. &
+Query: \texttt{optimized} bool optional. &
+\path{category_name} string; \path{avg_price}, \path{avg_rating} floats;
+\path{product_count} int. \\
+GET \path{/products/trending} &
+M4 query route. Ranks category products by recent linked review activity. &
+Query: \texttt{category} string required; \texttt{months} int optional;
+\texttt{optimized} bool optional for the default window. &
+Product rows with ASIN/title/image URL strings, price/stars floats, review count
+int, \path{recent_review_count} int, best-seller bool, and brand string. \\
+GET \path{/products/top-value} &
+M4 query route. Finds below-category-average price and above-average rating
+products with recent reviews. &
+Query: \texttt{reviewedSince} ISO date optional; \texttt{optimized} bool
+optional. &
+ASIN/title/image URL strings, price/stars floats, review count int, and category
+string. \\
+GET \path{/analytics/brands/performance} &
+M4 query route. Computes brand-level product and review aggregates. &
+Query: \texttt{optimized} bool optional. &
+\path{brand_name} string; product rating floats; product/review counts ints;
+verified review count int; average review score float; helpful-vote total int. \\
+GET \path{/analytics/reviews/trend} &
+M4 query route. Groups monthly category reviews by reviewer credibility group. &
+Query: \texttt{category} string required; \texttt{optimized} bool optional. &
+\path{review_month} timestamp; total reviews int; overall, high-, and
+low-credibility average ratings as floats; credibility gap float; verified count
+int. \\
+GET \path{/products/value-rankings} &
+M4 query route. Builds a weighted normalized product value score. &
+Query: \texttt{wRating}, \texttt{wReviews}, \texttt{wPriceEff},
+\texttt{wRecent} floats optional; \texttt{optimized} bool optional. &
+Product rows with ASIN/title strings, price/stars floats, review counts ints,
+category/brand strings, and \path{value_score} float. \\
+\bottomrule
+\end{longtable}
+\normalsize
+
+\section{Queries}
+The application uses query-backed routes throughout the frontend. The examples
+below are the most complex query families, and each one is exercised by a
+visible page or widget in the web app. The final implementation also includes
+\texttt{*QueryOptimized} exports and materialized-view-backed SQL for
+\texttt{?optimized=1}; these are post-Milestone-4 implementation additions, not
+new public endpoints. The internal \texttt{productExistsQuery} in
+\path{server/queries/products/search.sql.js} supports clean 404 responses before
+product-specific subqueries run.
+
+\small
+\begin{longtable}{@{}L{0.18\linewidth}L{0.23\linewidth}L{0.34\linewidth}L{0.19\linewidth}@{}}
+\toprule
+Route and page & Source file & How it is used & Why it is complex \\
+\midrule
+\endhead
+\path{/analytics/brands/performance} on Analytics &
+\path{server/queries/analytics.sql.js} &
+Ranks brands by product rating, linked-review volume, verified-review evidence,
+average review score, and helpful votes. &
+Brands/Products/Reviews joins, CTEs, grouping, filters, and ordered aggregates. \\
+\path{/analytics/reviews/trend} on Analytics &
+\path{server/queries/analytics.sql.js} &
+Shows monthly review trends for a selected category and compares high-activity
+and low-activity reviewer groups. &
+Reviewer-count CTE, category joins, \texttt{DATE\_TRUNC}, conditional
+aggregation. \\
+\path{/products/trending} on Home/Browse &
+\path{server/queries/products/trending.sql.js} &
+Ranks products in one category by recent review activity, then uses rating and
+review count as tie-breakers. &
+Review-horizon CTE, aggregation by ASIN, category/product/brand joins. \\
+\path{/products/top-value} on Home/Value flows &
+\path{server/queries/products/value.sql.js} &
+Finds products cheaper than their category average, rated above their category
+average, and reviewed since the requested date. &
+Correlated subqueries, EXISTS check, category/product joins, top-k ordering. \\
+\path{/products/value-rankings} on Value Rankings &
+\path{server/queries/products/value.sql.js} &
+Combines rating, review count, price efficiency, and recent activity using
+user-selected weights. &
+Multiple CTEs, global bounds, category bounds, normalization, score sorting. \\
+\path{/products/:asin/helpful-reviews} on Product Detail &
+\path{server/queries/products/detail.sql.js} &
+Returns the target product's most helpful reviews with reviewer-level context. &
+Reviewer aggregate CTE in original path; optimized lateral stats over top
+reviews. \\
+\path{/deals} on Deals/Home &
+\path{server/queries/products/deals.sql.js} &
+Ranks products by discount percentage while applying price and rating filters. &
+Computed expression sort, filtered product scan, category join. \\
+\path{/products/category} and \path{/products/brand} on Browse pages &
+\path{server/queries/products/browse.sql.js} &
+Provides paginated category and brand product lists with filters and display
+names. &
+Product/category/brand joins, pagination, filter predicates, optimized CTEs that
 page products before joining display names. \\
 \bottomrule
 \end{longtable}
 \normalsize
 
-\subsection{Milestone 4 API Reconciliation}
-The API specification already covered search, deals, cart savings, product
-detail side panels, analytics, trending, top-value, value rankings, and the
-category/brand/product metadata helpers. During final frontend integration we
-added two public browse-list routes, \path{/products/category} and
-\path{/products/brand}, because search alone was not enough for stable category
-and brand pages. These routes are backed by \texttt{categoryProductsQuery} and
-\texttt{brandProductsQuery}, plus optimized variants, in
-\path{server/queries/products/browse.sql.js}, exposed through
-\texttt{api.categoryProducts} and \texttt{api.brandProducts} in
-\path{client/src/api/client.js}, and used by the Browse, Category, and Brand
-pages. Separately, the final \texttt{*QueryOptimized} exports and
-materialized-view-backed SQL are post-Milestone-4 implementation additions used
-by \texttt{?optimized=1}; they do not create new public endpoints. We also added
-an internal \texttt{productExistsQuery} guard in
-\path{server/queries/products/search.sql.js} so product-specific subroutes can
-return clean 404 responses before running rating-distribution, helpful-review,
-or alternatives SQL.
-
-\section{Performance Evaluation and Optimization}
+\section{Performance Evaluation}
 The benchmark runner executes one discarded warmup run, pauses for one second,
 then records five measured \texttt{EXPLAIN ANALYZE} runs. The table reports
 median execution time from the latest \texttt{docs/timings.md}. Representative
 inputs are selected from the loaded database: the category with the most linked
 reviews (\texttt{Toys \& Games}), an ASIN with more than 50 reviews
 (\texttt{B0178IC734}), \texttt{reviewedSince=2018-01-01} for top-value, and the
-Balanced \texttt{0.4/0.2/0.2/0.2} value-ranking weights.
+Balanced \texttt{0.4/0.2/0.2/0.2} value-ranking weights. The events being timed
+are backend SQL execution plans for representative route queries, not React
+rendering time or HTTP network latency.
 
 \begin{center}
 \small
@@ -358,19 +506,6 @@ because the grouped SQL is already selective for the representative category;
 route caching improves repeat users rather than the first
 \texttt{EXPLAIN ANALYZE} timing.
 
-\section{Robustness, Testing, and Code Quality}
-The API validates malformed ASINs, missing required query parameters, invalid
-numeric ranges, invalid dates, zero-sum ranking weights, and oversized cart
-arrays. SQL uses parameterized bindings throughout. The client renders loading,
-empty, and error states for API-backed pages and uses abortable fetches to avoid
-stale UI updates after filters change.
-
-The repository is split by responsibility: route modules, query modules,
-database assets, data-pipeline scripts, client pages/components, and tests.
-Server tests mock the database pool and cover validation, query selection,
-caching, and response shape. Client tests cover API path building, routing,
-cart behavior, pages, charts, formatting helpers, and the query-mode toggle.
-
 \section{Technical Challenges}
 \textbf{Product/review entity alignment.} The largest data challenge was joining
 product ASINs with heterogeneous review sources. Some comment rows reference a
@@ -394,7 +529,16 @@ used materialized views for aggregates that are stable between refreshes, and
 only cached routes where repeat calls are common and the response changes
 infrequently.
 
-\section{Extra Credit and Tool Use}
+\textbf{Validation and regression coverage.} The API validates malformed ASINs,
+missing required query parameters, invalid numeric ranges, invalid dates,
+zero-sum ranking weights, and oversized cart arrays. SQL uses parameterized
+bindings throughout. Server tests mock the database pool and cover validation,
+query selection, caching, and response shape; client tests cover API path
+building, top-level routing including dynamic category, brand, and product
+routes, cart behavior, pages, charts, formatting helpers, and the query-mode
+toggle.
+
+\section*{Extra Credit and AI Tool Use}
 Deployment extra credit is claimed for the hosted application configuration. The
 frontend is configured with \texttt{VITE\_API\_BASE\_URL} set to
 \url{https://team45-cis550-final-project.vercel.app}, and the backend CORS
@@ -408,61 +552,5 @@ frontend's visual design direction and during final documentation and
 consistency review to identify drift between the code, rubric, and writeups. The
 team remains responsible for the project design, implementation, verification,
 and final submitted content.
-
-\appendix
-\section{Appendix A: Final API Catalog}
-\small
-\begin{longtable}{@{}L{0.08\linewidth}L{0.22\linewidth}L{0.27\linewidth}L{0.23\linewidth}L{0.12\linewidth}@{}}
-\toprule
-Method & Path & Parameters & Response summary & M4 status \\
-\midrule
-\endhead
-GET & \path{/categories} & Optional \texttt{optimized} & Category IDs and names & M4 aux \\
-GET & \path{/brands} & Optional \texttt{optimized} & Brand IDs and names & M4 aux \\
-GET & \path{/products/:asin} & Path ASIN, optional \texttt{optimized} & One product detail row & M4 aux \\
-GET & \path{/products/search} & \texttt{keyword}, optional \texttt{minStars}, \texttt{limit}, \texttt{offset} & Product search rows & M4 query \\
-GET & \path{/deals} & Optional \texttt{maxPrice}, \texttt{minStars}, \texttt{limit}, \texttt{offset} & Discount-ranked products & M4 query \\
-GET & \path{/products/category} & \texttt{category}, optional filters/page params & Paginated category products & Post-M4 \\
-GET & \path{/products/brand} & \texttt{brand}, optional filters/page params & Paginated brand products & Post-M4 \\
-GET & \path{/products/:asin/rating-distribution} & Path ASIN & Five rating buckets and verified ratios & M4 query \\
-GET & \path{/products/:asin/helpful-reviews} & Path ASIN & Top reviews with reviewer stats & M4 query \\
-GET & \path{/products/:asin/alternatives} & Path ASIN & Cheaper, higher-rated alternatives & M4 query \\
-POST & \path{/cart/savings} & JSON body \texttt{asins} & Aggregate list/current price and savings & M4 query \\
-GET & \path{/analytics/categories/compare} & Optional \texttt{optimized} & Category aggregate metrics & M4 query \\
-GET & \path{/products/trending} & \texttt{category}, optional \texttt{months} & Products ranked by recent reviews & M4 query \\
-GET & \path{/products/top-value} & Optional \texttt{reviewedSince} & Above-average rating, below-average price products & M4 query \\
-GET & \path{/analytics/brands/performance} & Optional \texttt{optimized} & Brand-level product/review metrics & M4 query \\
-GET & \path{/analytics/reviews/trend} & \texttt{category}, optional \texttt{optimized} & Monthly review trend rows & M4 query \\
-GET & \path{/products/value-rankings} & Optional \texttt{wRating}, \texttt{wReviews}, \texttt{wPriceEff}, \texttt{wRecent} & Weighted ranking rows & M4 query \\
-\bottomrule
-\end{longtable}
-\normalsize
-
-\section{Appendix B: Query Catalog and Source Files}
-\small
-\begin{longtable}{@{}L{0.21\linewidth}L{0.37\linewidth}L{0.23\linewidth}L{0.12\linewidth}@{}}
-\toprule
-Query family & Purpose & Source file & M4 status \\
-\midrule
-\endhead
-Metadata lists & Category and brand selectors & \path{server/queries/meta.sql.js} & M4 aux \\
-Product detail & Product overview by ASIN & \path{server/queries/meta.sql.js} & M4 aux \\
-Product existence guard & Internal 404 check before product-specific subroutes & \path{server/queries/products/search.sql.js} & Post-M4 \\
-Search & Keyword and minimum-star product search & \path{server/queries/products/search.sql.js} & M4 query \\
-Deals & Discount ranking & \path{server/queries/products/deals.sql.js} & M4 query \\
-Browse lists & Category and brand product pagination & \path{server/queries/products/browse.sql.js} & Post-M4 \\
-Rating distribution & Per-star review histogram & \path{server/queries/products/detail.sql.js} & M4 query \\
-Helpful reviews & Review snippets with reviewer context & \path{server/queries/products/detail.sql.js} & M4 query \\
-Alternatives & Same-category cheaper and higher-rated products & \path{server/queries/products/detail.sql.js} & M4 query \\
-Trending & Category products by recent review activity & \path{server/queries/products/trending.sql.js} & M4 query \\
-Top value & Category-relative price/rating filter & \path{server/queries/products/value.sql.js} & M4 query \\
-Value rankings & Weighted normalized score ranking & \path{server/queries/products/value.sql.js} & M4 query \\
-Cart savings & Aggregate savings across selected ASINs & \path{server/queries/cart.sql.js} & M4 query \\
-Category comparison & Category-level price, rating, and count & \path{server/queries/analytics.sql.js} & M4 query \\
-Brand performance & Brand-level product and review aggregates & \path{server/queries/analytics.sql.js} & M4 query \\
-Review trend & Monthly category review trends and credibility gap & \path{server/queries/analytics.sql.js} & M4 query \\
-\bottomrule
-\end{longtable}
-\normalsize
 
 \end{document}

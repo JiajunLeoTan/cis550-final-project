@@ -206,12 +206,14 @@ function mockProductExists(exists) {
 describe('GET /products/:asin/rating-distribution', () => {
   it('returns the distribution when the product exists', async () => {
     mockProductExists(true);
-    pool.query.mockResolvedValueOnce({ rows: [{ rating: 5, count: 10 }] });
+    pool.query.mockResolvedValueOnce({
+      rows: [{ rating: 5, review_count: 10, verified_ratio: 0.8 }]
+    });
 
     const res = await request(app).get(`/products/${VALID_ASIN}/rating-distribution`);
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual([{ rating: 5, count: 10 }]);
+    expect(res.body).toEqual([{ rating: 5, review_count: 10, verified_ratio: 0.8 }]);
     expect(pool.query).toHaveBeenCalledTimes(2);
   });
 
