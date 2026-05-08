@@ -22,7 +22,7 @@
 \newcolumntype{Y}{>{\raggedright\arraybackslash}X}
 
 \title{Team 45: Axiom Shopping Assistant\\[0.2em]\large CIS 5500 Final Report}
-\author{Chenguang Shen, Luis Garcia, Leo Tan, Anika Madan}
+\author{Leo Tan}
 \date{Spring 2026}
 
 \begin{document}
@@ -42,8 +42,9 @@ meaningful, and deciding which review signals are trustworthy. Axiom turns those
 signals into searchable product discovery, product-detail evidence, cart
 savings, category and brand analytics, and a customizable value ranking.
 
-The application was built by Chenguang Shen, Luis Garcia, Leo Tan, and Anika
-Madan. Our main goals were:
+The project was submitted under Team 45, whose group members were Chenguang
+Shen, Luis Garcia, Leo Tan, and Anika Madan. The final implementation and work
+distribution are discussed in Appendix A. The project's main goals were:
 \begin{itemize}
   \item integrate overlapping product, category, brand, user, and review/comment
   data into a normalized PostgreSQL schema;
@@ -557,5 +558,76 @@ frontend's visual design direction and during final documentation and
 consistency review to identify drift between the code, rubric, and writeups. The
 team remains responsible for the project design, implementation, verification,
 and final submitted content.
+
+\appendix
+\section{Work Distribution and Query Evolution}
+Exact contribution percentages are difficult to assign because the project
+changed substantially between the early query-design milestones and the final
+implemented application. Through Milestone 3, the work was broadly shared:
+group members participated in project planning, dataset discussion, and initial
+SQL query sketches, while Leo Tan usually consolidated the final milestone
+writeups in \LaTeX.
+
+After Milestone 3, the workload became more concentrated. Leo Tan completed most
+of the Milestone 4 route design and API specification work, then carried the
+majority of the final implementation: Express route handlers, parameter
+validation, SQL rewrites, optimized query variants, materialized-view and index
+design, benchmark scripts, frontend integration, deployment configuration, and
+final documentation cleanup. The earlier query drafts were useful as starting
+points, but many had to be tightened substantially to match the real schema,
+data limitations, route contracts, and performance requirements.
+
+\begin{center}
+\small
+\begin{tabularx}{\linewidth}{@{}L{0.22\linewidth}Y@{}}
+\toprule
+Area & Final contribution pattern \\
+\midrule
+Milestones 1--3 planning and query ideas &
+Shared across the group; Leo Tan consolidated and formatted final written
+submissions. \\
+Milestone 4 API design &
+Primarily Leo Tan; route names, request parameters, response shapes, and API
+contract decisions were revised from the early query sketches. \\
+Backend implementation &
+Primarily Leo Tan; includes route handlers, validation, original/optimized SQL
+selection, caching behavior, and error handling. \\
+Query tightening and optimization &
+Primarily Leo Tan; includes parameterized SQL, null-safe predicates,
+materialized views, indexes, query rewrites, and benchmark comparisons. \\
+Frontend integration and deployment &
+Primarily Leo Tan; includes wiring the React pages to the API, query-mode
+toggle behavior, environment configuration, and deployment debugging. \\
+\bottomrule
+\end{tabularx}
+\normalsize
+\end{center}
+
+Several examples show how the early SQL ideas changed before becoming the final
+application queries:
+\begin{itemize}
+  \item The Milestone 3 trending-products query depended on a planned
+  \texttt{bought\_last\_month} product field. The actual dataset did not
+  provide a reliable field with that meaning, so the final implementation uses
+  \texttt{recent\_review\_count}, computed from \texttt{Reviews.review\_timestamp}
+  and later precomputed in \texttt{mv\_value\_score\_components}.
+  \item The initial reviewer-credibility and helpful-review queries assumed a
+  separate \texttt{ReviewUsers} table. The final schema computes reviewer total
+  reviews and average rating from the \texttt{Reviews} table itself, including
+  an optimized helpful-review path that ranks the target product's top reviews
+  before computing reviewer stats.
+  \item Early query examples used hard-coded literals such as fixed category
+  names, example ASINs, and static keyword strings. The final API uses
+  parameterized SQL bindings, validates malformed input, returns clear 400/404
+  responses, and supports pagination where needed.
+  \item The brand-performance query changed from filtering only verified
+  purchases directly to returning broader brand review statistics while also
+  reporting \texttt{verified\_review\_count}. This preserves the analytics
+  signal without discarding non-verified review evidence.
+  \item The final system adds routes and SQL not present in Milestone 3,
+  including \path{/products/top-value}, \path{/products/value-rankings},
+  \path{/products/category}, and \path{/products/brand}, plus optimized paths
+  backed by materialized views and specialized indexes.
+\end{itemize}
 
 \end{document}
