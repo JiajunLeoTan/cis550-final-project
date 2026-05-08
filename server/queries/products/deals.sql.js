@@ -20,6 +20,7 @@ const dealsQuery = `
     AND p.price < p.list_price
     AND p.price <= $1
     AND COALESCE(p.stars, 0) >= $2
+    AND ($2 = 0 OR COALESCE(p.review_count, 0) > 0)
   ORDER BY (1 - p.price / p.list_price) DESC, p.review_count DESC, p.stars DESC NULLS LAST, p.asin ASC
   LIMIT $3::int OFFSET $4::int;
 `;
@@ -45,6 +46,7 @@ const dealsQueryOptimized = `
     AND p.price < p.list_price
     AND p.price <= $1
     AND COALESCE(p.stars, 0) >= $2
+    AND ($2 = 0 OR COALESCE(p.review_count, 0) > 0)
   ORDER BY (1 - p.price / p.list_price) DESC, p.review_count DESC, p.stars DESC NULLS LAST, p.asin ASC
   LIMIT COALESCE($3::int, 100) OFFSET $4::int;
 `;

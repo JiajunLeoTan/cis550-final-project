@@ -19,6 +19,7 @@ const searchProductsQuery = `
   FROM products
   WHERE title ILIKE '%' || $1 || '%'
     AND COALESCE(stars, 0) >= $2
+    AND ($2 = 0 OR COALESCE(review_count, 0) > 0)
   ORDER BY stars DESC NULLS LAST, review_count DESC, title ASC
   LIMIT $3::int OFFSET $4::int;
 `;
@@ -44,6 +45,7 @@ const searchProductsQueryOptimized = `
   FROM products
   WHERE title ILIKE '%' || $1 || '%'
     AND COALESCE(stars, 0) >= $2
+    AND ($2 = 0 OR COALESCE(review_count, 0) > 0)
   ORDER BY stars DESC NULLS LAST, review_count DESC, title ASC
   LIMIT COALESCE($3::int, 100) OFFSET $4::int;
 `;

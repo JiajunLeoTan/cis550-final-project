@@ -1,8 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
+  brandProductsQuery,
+  brandProductsQueryOptimized,
+  categoryProductsQuery,
+  categoryProductsQueryOptimized,
   dealsQuery,
   dealsQueryOptimized,
+  searchProductsQuery,
+  searchProductsQueryOptimized,
   topValueProductsQuery,
   topValueProductsQueryOptimized,
   trendingProductsDefaultQuery,
@@ -21,6 +27,28 @@ describe('product SQL regressions', () => {
     expect(dealsQuery).toMatch(order);
     expect(dealsQueryOptimized).toMatch(order);
     expect(dealsQuery).not.toMatch(/ORDER BY discount_pct/i);
+  });
+
+  it('positive minimum-rating filters require at least one product review', () => {
+    for (const sql of [
+      searchProductsQuery,
+      searchProductsQueryOptimized
+    ]) {
+      expect(sql).toMatch(/COALESCE\(stars,\s*0\)\s*>=\s*\$2/i);
+      expect(sql).toMatch(/\$2\s*=\s*0\s+OR\s+COALESCE\(review_count,\s*0\)\s*>\s*0/i);
+    }
+
+    for (const sql of [
+      dealsQuery,
+      dealsQueryOptimized,
+      categoryProductsQuery,
+      categoryProductsQueryOptimized,
+      brandProductsQuery,
+      brandProductsQueryOptimized
+    ]) {
+      expect(sql).toMatch(/COALESCE\(p\.stars,\s*0\)\s*>=\s*\$2/i);
+      expect(sql).toMatch(/\$2\s*=\s*0\s+OR\s+COALESCE\(p\.review_count,\s*0\)\s*>\s*0/i);
+    }
   });
 
   it('trending separates explicit month windows from the dataset-relative default', () => {

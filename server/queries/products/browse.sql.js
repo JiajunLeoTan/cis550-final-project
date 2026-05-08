@@ -26,6 +26,7 @@ const categoryProductsQuery = `
   LEFT JOIN brands b ON p.brand_id = b.brand_id
   WHERE c.category_name = $1
     AND COALESCE(p.stars, 0) >= $2
+    AND ($2 = 0 OR COALESCE(p.review_count, 0) > 0)
     AND ($3::numeric IS NULL OR p.price <= $3)
   ORDER BY
     CASE
@@ -66,6 +67,7 @@ const brandProductsQuery = `
   LEFT JOIN categories c ON p.category_id = c.category_id
   WHERE b.brand_name = $1
     AND COALESCE(p.stars, 0) >= $2
+    AND ($2 = 0 OR COALESCE(p.review_count, 0) > 0)
     AND ($3::numeric IS NULL OR p.price <= $3)
   ORDER BY
     CASE
@@ -104,6 +106,7 @@ const categoryProductsQueryOptimized = `
     FROM products p
     JOIN target_category tc ON p.category_id = tc.category_id
     WHERE COALESCE(p.stars, 0) >= $2
+      AND ($2 = 0 OR COALESCE(p.review_count, 0) > 0)
       AND ($3::numeric IS NULL OR p.price <= $3)
     ORDER BY
       CASE
@@ -176,6 +179,7 @@ const brandProductsQueryOptimized = `
     FROM products p
     JOIN target_brand tb ON p.brand_id = tb.brand_id
     WHERE COALESCE(p.stars, 0) >= $2
+      AND ($2 = 0 OR COALESCE(p.review_count, 0) > 0)
       AND ($3::numeric IS NULL OR p.price <= $3)
     ORDER BY
       CASE
