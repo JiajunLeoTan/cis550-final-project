@@ -26,7 +26,7 @@ const { api } = vi.hoisted(() => ({
 
 vi.mock('../../src/api/client.js', () => ({
   api,
-  getQueryMode: () => 'old',
+  getQueryMode: () => 'standard',
   setQueryMode: () => {},
   BASE_URL: 'http://test'
 }));

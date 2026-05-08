@@ -21,17 +21,17 @@ export default function QueryModeToggle() {
     >
       <button
         type="button"
-        className={`query-toggle-btn${mode === 'old' ? ' active' : ''}`}
-        onClick={() => apply('old')}
-        aria-pressed={mode === 'old'}
+        className={`query-toggle-btn${mode === 'standard' ? ' active' : ''}`}
+        onClick={() => apply('standard')}
+        aria-pressed={mode === 'standard'}
       >
         standard
       </button>
       <button
         type="button"
-        className={`query-toggle-btn${mode === 'new' ? ' active' : ''}`}
-        onClick={() => apply('new')}
-        aria-pressed={mode === 'new'}
+        className={`query-toggle-btn${mode === 'optimized' ? ' active' : ''}`}
+        onClick={() => apply('optimized')}
+        aria-pressed={mode === 'optimized'}
       >
         optimized
       </button>

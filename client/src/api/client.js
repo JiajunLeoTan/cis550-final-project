@@ -1,23 +1,31 @@
 const BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
 
 const QUERY_MODE_KEY = 'queryMode';
+const STANDARD_MODE = 'standard';
+const OPTIMIZED_MODE = 'optimized';
+
+function isStandardMode(mode) {
+  return mode === STANDARD_MODE || mode === 'old';
+}
 
 export function getQueryMode() {
-  if (typeof window === 'undefined') return 'old';
-  return window.localStorage.getItem(QUERY_MODE_KEY) === 'new' ? 'new' : 'old';
+  if (typeof window === 'undefined') return OPTIMIZED_MODE;
+  return isStandardMode(window.localStorage.getItem(QUERY_MODE_KEY))
+    ? STANDARD_MODE
+    : OPTIMIZED_MODE;
 }
 
 export function setQueryMode(mode) {
   if (typeof window === 'undefined') return;
-  if (mode === 'new') {
-    window.localStorage.setItem(QUERY_MODE_KEY, 'new');
+  if (isStandardMode(mode)) {
+    window.localStorage.setItem(QUERY_MODE_KEY, STANDARD_MODE);
   } else {
     window.localStorage.removeItem(QUERY_MODE_KEY);
   }
 }
 
 function withMode(path) {
-  if (getQueryMode() !== 'new') return path;
+  if (getQueryMode() === STANDARD_MODE) return path;
   const sep = path.includes('?') ? '&' : '?';
   return `${path}${sep}optimized=1`;
 }

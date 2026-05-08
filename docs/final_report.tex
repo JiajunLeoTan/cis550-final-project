@@ -55,10 +55,11 @@ Madan. Our main goals were:
   indexing, caching, query restructuring, and materialized views are measurable.
 \end{itemize}
 
-The final interface includes a visible query-mode toggle. In standard mode the
-client calls original SQL paths; in optimized mode it appends
-\texttt{?optimized=1}, letting the backend choose optimized SQL or cached
-responses without changing the public API.
+The final interface includes a visible query-mode toggle. Optimized mode is the
+frontend default and appends \texttt{?optimized=1}, letting the backend choose
+optimized SQL or cached responses without changing the public API. When users
+switch to standard mode, the client omits the optimized flag and calls the
+original SQL paths.
 
 \section{Architecture}
 The system has three tiers. The frontend is a React/Vite single-page
@@ -82,12 +83,12 @@ Testing/ops & Vitest, Supertest, benchmark scripts & Regression tests and timing
 \end{center}
 
 Browser pages call a small client API wrapper, which appends the global
-\texttt{optimized=1} flag when the user chooses optimized query mode. Express
-route modules validate request input, select the original or optimized SQL
-variant, query PostgreSQL through a shared pool, and return stable JSON response
-shapes. Materialized views and indexes live in the database layer, while the
-frontend remains unaware of whether a response came from an original SQL query,
-an optimized SQL query, or a short-lived cache.
+\texttt{optimized=1} flag unless the user explicitly switches to standard query
+mode. Express route modules validate request input, select the original or
+optimized SQL variant, query PostgreSQL through a shared pool, and return stable
+JSON response shapes. Materialized views and indexes live in the database layer,
+while the frontend remains unaware of whether a response came from an original
+SQL query, an optimized SQL query, or a short-lived cache.
 
 \section{Data}
 The final database integrates product metadata with two review/comment sources:

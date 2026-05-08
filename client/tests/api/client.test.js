@@ -20,22 +20,29 @@ afterEach(() => {
 });
 
 describe('query mode', () => {
-  it('defaults to old when nothing is in localStorage', () => {
-    expect(getQueryMode()).toBe('old');
+  it('defaults to optimized when nothing is in localStorage', () => {
+    expect(getQueryMode()).toBe('optimized');
   });
 
-  it('stores "new" when set, removes the key for any other value', () => {
-    setQueryMode('new');
-    expect(localStorage.getItem('queryMode')).toBe('new');
-    expect(getQueryMode()).toBe('new');
+  it('stores "standard" only when standard mode is selected', () => {
+    setQueryMode('standard');
+    expect(localStorage.getItem('queryMode')).toBe('standard');
+    expect(getQueryMode()).toBe('standard');
 
-    setQueryMode('old');
+    setQueryMode('optimized');
     expect(localStorage.getItem('queryMode')).toBe(null);
-    expect(getQueryMode()).toBe('old');
+    expect(getQueryMode()).toBe('optimized');
   });
 
-  it('appends ?optimized=1 to plain paths in new mode', async () => {
-    setQueryMode('new');
+  it('treats legacy old/new storage values as standard/optimized', () => {
+    localStorage.setItem('queryMode', 'old');
+    expect(getQueryMode()).toBe('standard');
+
+    localStorage.setItem('queryMode', 'new');
+    expect(getQueryMode()).toBe('optimized');
+  });
+
+  it('appends ?optimized=1 to plain paths by default', async () => {
     await api.categories();
     expect(fetchSpy).toHaveBeenCalledWith(
       `${BASE_URL}/categories?optimized=1`,
@@ -43,8 +50,7 @@ describe('query mode', () => {
     );
   });
 
-  it('appends &optimized=1 when path already has a query string', async () => {
-    setQueryMode('new');
+  it('appends &optimized=1 when a default-optimized path already has a query string', async () => {
     await api.searchProducts({ keyword: 'foo' });
     expect(fetchSpy.mock.calls[0][0]).toBe(
       `${BASE_URL}/products/search?keyword=foo&optimized=1`
@@ -52,6 +58,7 @@ describe('query mode', () => {
   });
 
   it('does not modify path in old mode', async () => {
+    setQueryMode('standard');
     await api.categories();
     expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/categories`);
   });
@@ -60,7 +67,9 @@ describe('query mode', () => {
 describe('query string builder', () => {
   it('drops null, undefined, and empty values', async () => {
     await api.searchProducts({ keyword: 'foo', minStars: undefined, limit: '', offset: null });
-    expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/products/search?keyword=foo`);
+    expect(fetchSpy.mock.calls[0][0]).toBe(
+      `${BASE_URL}/products/search?keyword=foo&optimized=1`
+    );
   });
 
   it('encodes special characters in keys and values', async () => {
@@ -71,7 +80,7 @@ describe('query string builder', () => {
 
   it('emits no query string when all values are empty', async () => {
     await api.searchProducts({});
-    expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/products/search`);
+    expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/products/search?optimized=1`);
   });
 });
 
@@ -87,7 +96,7 @@ describe('request method shapes', () => {
   it('cartSavings POSTs JSON with the asins payload', async () => {
     await api.cartSavings(['B0719KWG8H', 'B07VMNJHBK']);
     const [url, opts] = fetchSpy.mock.calls[0];
-    expect(url).toBe(`${BASE_URL}/cart/savings`);
+    expect(url).toBe(`${BASE_URL}/cart/savings?optimized=1`);
     expect(opts.method).toBe('POST');
     expect(opts.headers).toEqual({ 'Content-Type': 'application/json' });
     expect(JSON.parse(opts.body)).toEqual({ asins: ['B0719KWG8H', 'B07VMNJHBK'] });
@@ -101,7 +110,9 @@ describe('request method shapes', () => {
 
   it('encodes ASIN path params', async () => {
     await api.product('B07/SLASH');
-    expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/products/B07%2FSLASH`);
+    expect(fetchSpy.mock.calls[0][0]).toBe(
+      `${BASE_URL}/products/B07%2FSLASH?optimized=1`
+    );
   });
 });
 
@@ -137,17 +148,23 @@ describe('error handling', () => {
 describe('endpoint shapes', () => {
   it('deals supports filter parameters', async () => {
     await api.deals({ maxPrice: 100, minStars: 4 });
-    expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/deals?maxPrice=100&minStars=4`);
+    expect(fetchSpy.mock.calls[0][0]).toBe(
+      `${BASE_URL}/deals?maxPrice=100&minStars=4&optimized=1`
+    );
   });
 
   it('brandProducts builds the brand path', async () => {
     await api.brandProducts({ brand: 'Olay', limit: 8 });
-    expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/products/brand?brand=Olay&limit=8`);
+    expect(fetchSpy.mock.calls[0][0]).toBe(
+      `${BASE_URL}/products/brand?brand=Olay&limit=8&optimized=1`
+    );
   });
 
   it('trending uses category and months params', async () => {
     await api.trending({ category: 'Beauty', months: 6 });
-    expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/products/trending?category=Beauty&months=6`);
+    expect(fetchSpy.mock.calls[0][0]).toBe(
+      `${BASE_URL}/products/trending?category=Beauty&months=6&optimized=1`
+    );
   });
 
   it('topValue passes reviewedSince', async () => {
@@ -165,7 +182,7 @@ describe('endpoint shapes', () => {
   it('reviewsTrend filters by category', async () => {
     await api.reviewsTrend({ category: 'Hair Care' });
     expect(fetchSpy.mock.calls[0][0]).toBe(
-      `${BASE_URL}/analytics/reviews/trend?category=Hair%20Care`
+      `${BASE_URL}/analytics/reviews/trend?category=Hair%20Care&optimized=1`
     );
   });
 
@@ -181,7 +198,11 @@ describe('endpoint shapes', () => {
   it('categoriesCompare and brandsPerformance are simple GETs', async () => {
     await api.categoriesCompare();
     await api.brandsPerformance();
-    expect(fetchSpy.mock.calls[0][0]).toBe(`${BASE_URL}/analytics/categories/compare`);
-    expect(fetchSpy.mock.calls[1][0]).toBe(`${BASE_URL}/analytics/brands/performance`);
+    expect(fetchSpy.mock.calls[0][0]).toBe(
+      `${BASE_URL}/analytics/categories/compare?optimized=1`
+    );
+    expect(fetchSpy.mock.calls[1][0]).toBe(
+      `${BASE_URL}/analytics/brands/performance?optimized=1`
+    );
   });
 });
