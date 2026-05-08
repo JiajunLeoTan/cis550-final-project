@@ -20,8 +20,8 @@ paginate: true
 
 <!--
 SPEAKER NOTES — Title (~20s)
-Good [morning/afternoon]. We're Team 45 — Chenguang Shen, Luis Garcia, Leo Tan, and Anika Madan — and our project is **Axiom**, a relational shopping assistant built over 1.4 million Amazon products and roughly 3 million linked reviews. The headline number we'll get to is a twelve-thousand-x speedup on our most-tuned query.
-Today's plan: (1) the problem and what we built, (2) the data and schema, (3) the complex queries and their optimizations with real benchmark numbers, then (4) a short live demo on the deployed app.
+Hey everyone, thanks for having us. I'm [name], and I'm here with Chenguang, Luis, and Anika — Team 45. Our project is Axiom, a shopping assistant built on top of about 1.4 million Amazon products and roughly 3 million linked reviews. The headline number we're going to land on in a few minutes is a twelve-thousand-x speedup on our most-tuned query.
+Plan for the next fifteen: I'll walk through the problem and what we shipped, the data and schema, then the complex queries with the actual benchmark numbers — and then we'll switch over to the live demo on the deployed app.
 -->
 
 ---
@@ -61,8 +61,8 @@ Turn noisy product and review data into a **normalized PostgreSQL database** and
 
 <!--
 SPEAKER NOTES — Problem and Goal (~40s)
-The user problem is information overload. An Amazon product page already shows the price, the list price, the star rating, the review count, and a seller label — but those signals are presented side by side, never synthesized. The shopper still has to compare alternatives by hand, decide whether a discount is *meaningfully* large, and judge which reviews to trust.
-Our goal is to take the raw product and review data and turn it into a normalized PostgreSQL database that *answers* those questions. Concretely, that's five workflows: search and browse, product evidence, cart savings, analytics, and a custom weighted value ranking. Each workflow on this page maps onto one or more SQL queries we'll discuss later.
+So the problem is something we kept running into ourselves. Every Amazon page already shows you the price, the list price, the stars, the review count, a seller label — but none of it's actually synthesized. You still have to compare alternatives by hand, eyeball whether a "discount" is actually a discount, and figure out which reviews you can trust.
+Our goal was to push that synthesis into the database. Take the noisy product and review data, normalize it, and ship workflows that answer those questions. Five of them on the right — search and browse, product evidence, cart savings, analytics, and a custom weighted ranking. Each one maps onto SQL we'll get into in a few slides.
 -->
 
 ---
@@ -101,8 +101,8 @@ Our goal is to take the raw product and review data and turn it into a normalize
 
 <!--
 SPEAKER NOTES — Application Map (~40s)
-We have eight distinct pages, each backed by real database queries. The Home page wires together search, deals, and trending picks. Browse, Category, and Brand pages give paginated product lists with URL-backed filters. Product Detail aggregates four separate routes — metadata, the rating distribution chart, the most helpful reviews with reviewer context, and cheaper higher-rated alternatives. Cart sums savings server-side. Analytics has three custom SVG charts driven by three analytics endpoints. And Value Rankings lets the user weight four signals to produce a custom ranking.
-The stack on the left is the whole system: React + Vite client, Express API, PostgreSQL on AWS RDS, and a Python data pipeline.
+Eight pages, every one of them hits the database. Home wires together search, deals, and trending picks. Browse, Category, and Brand do paginated lists with the filters in the URL — refresh-safe, shareable. Product Detail is actually four routes glued together: metadata, the rating histogram, the most helpful reviews with reviewer context, and cheaper higher-rated alternatives. Cart sums savings on the server. Analytics has three custom SVG charts driven by three analytics endpoints. Value Rankings is the slider page — four signals, user-weighted.
+Stack on the left is the whole system: React-Vite up front, Express-pg in the middle, Postgres on RDS, Python for the data side.
 -->
 
 ---
@@ -142,8 +142,9 @@ Rating, text, helpful votes, verified flag, timestamp, user ID, ASIN, parent ASI
 
 <!--
 SPEAKER NOTES — Datasets (~45s)
-We use two large overlapping sources, plus a small lookup file for category names. The first is the Amazon Products 2023 catalog from Kaggle — about 1.4 million ASINs with title, image, price, list price, stars, review count, best-seller flag, and category. The second is Amazon Reviews '23 from the McAuley Lab — we use the Pure-IDs 5-Core file for dense user-product interactions, plus the comment export for review text and helpful votes.
-The two datasets *overlap* through ASIN, parent ASIN, category ID, and user ID. That overlap is the whole point — it's what lets us join across sources to answer questions like "which discounted products also have strong recent review activity?" The bar chart on the right is on a log scale, so you can see all five tables at once: 248 categories at the small end, three million reviews at the large end. Both fact tables clear the rubric's 100k bar by more than 10x.
+Two big sources, plus a small lookup file for category names. First one is the Amazon Products 2023 catalog from Kaggle — about 1.4 million ASINs with title, image, price, list price, stars, review count, best-seller flag, category. Second is Amazon Reviews '23 from the McAuley Lab — we used the Pure-IDs 5-Core file for the dense interaction signal, plus the comment export so we'd have actual review text and helpful votes.
+The whole point is that they overlap. Same ASIN, same parent ASIN, same user IDs. That's what lets us answer cross-source questions — things like "which discounted products also have strong recent review activity."
+Chart on the right is log scale so all five tables fit on the same axis. 248 categories at the low end, three million reviews at the high end. Both fact tables clear the rubric's 100k bar by more than 10x.
 -->
 
 ---
@@ -165,11 +166,11 @@ The two datasets *overlap* through ASIN, parent ASIN, category ID, and user ID. 
 
 <!--
 SPEAKER NOTES — Cleaning and Entity Resolution (~60s)
-The cleaning pipeline runs in Python and does five things worth highlighting.
-First, **brand entity resolution** is non-trivial because the source has no brand column. We extract canonical brand names from the title prefix, normalize punctuation and legal suffixes like "Inc." and "LLC", and crucially, drop brands with fewer than five products to NULL — that prevents thousands of one-off pseudo-brands from typos.
-Second, **ASIN linking** is the main entity-resolution step: reviews can reference either the child ASIN or the parent ASIN. We accept both, fall back to parent ASIN when the child isn't in the catalog, and drop orphan reviews entirely. That fallback alone recovers reviews that would otherwise be silently lost.
-Third, **review fact deduplication** by the tuple (asin, user_id, review_timestamp) prevents inflated helpful-vote totals when the two source files overlap.
-Everything is streamed in chunks — we never hold the full multi-million-row review file in memory. Output is normalized CSVs loaded into Postgres via COPY.
+A few things in the cleaning pipeline worth calling out.
+Brand resolution was the messy one. There's no brand column in the source — we had to extract it from the title prefix, normalize punctuation and legal suffixes like Inc and LLC, and crucially, drop brands with fewer than five products to NULL. Without that threshold we ended up with thousands of one-off pseudo-brands — almost all of them typos.
+ASIN linking is the actual entity-resolution step. Reviews can reference the child ASIN or the parent ASIN, so we accept both, fall back to parent when the child isn't in the catalog, and drop orphans entirely. That fallback alone saved a meaningful chunk of reviews that would've otherwise just disappeared.
+Third one: review-fact dedup on the (asin, user, timestamp) tuple. The two source files overlap, so without dedup we were double-counting helpful votes.
+Everything streams in chunks — we never hold the full review file in memory at once. Output is normalized CSVs, loaded into Postgres with COPY.
 -->
 
 ---
@@ -203,9 +204,9 @@ Everything is streamed in chunks — we never hold the full multi-million-row re
 
 <!--
 SPEAKER NOTES — Schema and ER Diagram (~40s)
-Five base relations. Categories and Brands are lookup tables. Products has the ASIN as primary key plus foreign keys to category and brand. Users holds reviewer IDs. Reviews is the fact table — it bridges Products and Users with rating, text, helpful votes, verified flag, and timestamp.
-On the diagram you can see the cardinalities: each Product belongs to exactly one Category and at most one Brand; each Review references exactly one Product and one User. The interesting joins all happen through this Reviews fact table.
-The three materialized views — value-score components, brand performance, category compare — are derived read models the optimized path uses. They are *not* part of the base schema and don't replace any base relation; they're refreshed from the base tables.
+Five base relations. Categories and Brands are lookup tables. Products is keyed on ASIN with FKs out to category and brand. Users is just reviewer IDs. Reviews is the fact table — that's where Products and Users meet, with rating, text, helpful votes, verified flag, timestamp.
+Cardinalities on the diagram: each Product belongs to exactly one Category and at most one Brand; each Review references exactly one Product and one User. All the interesting joins go through the Reviews fact table — that's the bridge.
+The three materialized views — value-score components, brand performance, category compare — are derived read models that the optimized path uses. Important to flag: they are *not* base relations, and they don't replace any base table. They're refreshed from the base tables. So we still treat the schema as five tables, not eight.
 -->
 
 ---
@@ -226,10 +227,10 @@ The three materialized views — value-score components, brand performance, cate
 
 <!--
 SPEAKER NOTES — 3NF Proof (~40s)
-Quickly working down the table. Categories and Brands each have a single non-trivial functional dependency from the primary key to the display name — that's trivially 3NF.
-Products is the interesting case: ASIN determines all of title, URLs, prices, stars, review count, the best-seller flag, and both foreign keys. Critically, we do *not* store the category name or brand name on Products — those live only in their lookup tables, so there is no transitive dependency from ASIN through a foreign key to a non-key display attribute.
-Users has no non-key attribute, so it's trivially 3NF. Reviews has review_id determining everything else; the product and user details stay in their own tables, which means Reviews stores only the relationship and review-specific facts.
-Every non-trivial functional dependency has a superkey on the left-hand side — the schema is in 3NF.
+Quickly down the table. Categories and Brands each have one non-trivial FD — primary key to display name. Trivially 3NF.
+Products is the one worth pausing on. ASIN determines all of: title, URLs, prices, stars, review count, best-seller flag, and the two FKs. The thing we deliberately did *not* do was store category_name or brand_name on Products — those live only in their lookup tables. So there's no transitive dependency from ASIN through an FK to some non-key display attribute. We thought about this when we designed the schema.
+Users has nothing but the PK, so it's trivially 3NF. Reviews has review_id determining everything else, and product and user details stay in their own tables.
+Every non-trivial FD has a superkey on the left. Schema's in 3NF.
 -->
 
 ---
@@ -278,9 +279,9 @@ This is what makes the speedups directly measurable end-to-end — same JSON con
 
 <!--
 SPEAKER NOTES — Architecture and Query-Mode Contract (~40s)
-Three-tier architecture: React + Vite SPA on top, Express + pg pool in the middle, PostgreSQL on AWS RDS at the bottom.
-The thing I want to call out is the **query-mode contract** on the right. Every route preserves the exact same public API — same path, same parameters, same JSON response shape — but accepts an `?optimized=0` or `?optimized=1` flag. Zero hits the original SQL path; one hits the indexed, materialized-view-backed, restructured, or cached path.
-This is the design choice that makes the speedups directly measurable end-to-end. For every benchmark number you'll see in the next few slides, the original and optimized SQL produce the same ranked output — we're not changing semantics, only the plan.
+Three tiers. React-Vite SPA up top, Express-pg pool in the middle, Postgres on RDS at the bottom.
+The thing I want to flag here is the query-mode contract on the right. Every single route preserves the exact same public API — same path, same parameters, same JSON shape — but accepts an `?optimized=0` or `?optimized=1` flag. Zero hits the original SQL. One hits the indexed, MV-backed, restructured, or cached path.
+That design choice is what makes every benchmark number you're about to see directly comparable. Original and optimized SQL produce the same ranked output — we're not changing semantics, we're swapping the plan.
 -->
 
 ---
@@ -304,9 +305,10 @@ The rubric requires ≥ 4 complex queries drawing on multiple datasets. Axiom sh
 
 <!--
 SPEAKER NOTES — Complex Query Catalog (~45s)
-The rubric asks for at least four complex queries drawing on multiple datasets. We ship eight. The columns on this matrix correspond to the rubric's complexity criteria: multiple joins, subqueries or CTEs or views, aggregation, and universal/existential checks.
-Every one of these eight queries touches at least two base tables — most touch three or four. Top value uses an actual EXISTS clause for the recent-review check. Helpful reviews uses a top-k restriction with a lateral aggregation. Value rankings stacks multiple CTEs over a materialized view. Brand performance and review trend use HAVING-style filters and conditional aggregation.
-We'll go deep on four of these — top value, value rankings, helpful reviews, and category compare — in the deep-dive slides after the timing table.
+Rubric wants at least four complex queries hitting multiple datasets. We ship eight.
+The columns map onto the rubric's complexity criteria — multiple joins, subqueries / CTEs / views, aggregation, and universal/existential checks. Every one of these eight queries touches at least two base tables, and most touch three or four.
+Top value uses an actual EXISTS clause for the recent-review check. Helpful reviews uses a top-k filter with lateral aggregation. Value rankings stacks multiple CTEs over a materialized view. Brand performance and review trend use HAVING-style filters and conditional aggregation.
+We'll go deep on four of these — top value, value rankings, helpful reviews, and category compare — right after the timing table.
 -->
 
 ---
@@ -339,10 +341,10 @@ We'll go deep on four of these — top value, value rankings, helpful reviews, a
 
 <!--
 SPEAKER NOTES — Pre / Post Timings Table (~60s)
-This is the full benchmark table from `docs/timings.md`. Median milliseconds across five EXPLAIN ANALYZE runs, after one discarded warmup. Inputs are representative of typical UI usage.
-The two rows that satisfy the rubric's 15-second pre-optimization bar are bolded: **top-value** at 324,918 ms — that's about five and a half minutes for a single query — and **value-rankings** at 17,047 ms, about seventeen seconds. After optimization, top-value drops to 855 ms and value-rankings drops to 1.4 ms.
-Other headline numbers: helpful reviews from 9 seconds to 7 ms, that's 1,290x. Categories compare from 3 seconds to under a millisecond, almost 8,000x. Brand performance, 644x.
-The rows that didn't move are honest results — primary-key lookups, small lookups, or queries already served by base-schema indexes. We'll explain those a few slides later.
+This is the full benchmark table, straight from `docs/timings.md`. Median ms across five EXPLAIN ANALYZE runs after a discarded warmup. Inputs are picked to mirror what the UI actually sends.
+The two bolded rows clear the rubric's 15-second pre-opt bar. Top-value at 324,918 ms — that's about five and a half minutes for a single query, which I'll be honest was a pretty alarming number when we first benched it. And value-rankings at 17,047 ms, about seventeen seconds. After optimization those drop to 855 ms and 1.4 ms respectively.
+Other ones worth flagging: helpful reviews from 9 seconds down to 7 milliseconds — 1,290x. Categories compare from 3 seconds to under a millisecond — almost 8,000x. Brand performance, 644x.
+The flat rows are honest results — primary-key lookups, small lookups, queries already served by base-schema indexes. We'll come back to those in a few slides.
 -->
 
 ---
@@ -384,9 +386,9 @@ The rows that didn't move are honest results — primary-key lookups, small look
 
 <!--
 SPEAKER NOTES — Runtime Chart (~40s)
-This is the same data as the table, visualized on a log-millisecond axis. Pre-optimization bars are in terracotta; post-optimization in sage green; the maroon pair is reviews-trend, where the SQL is essentially the same and the route cache is what helps real users.
-Notice the visual story: top-value has the longest bar at the top — it crossed the 100-second mark — and the green bar is barely visible because it dropped to under a second. Value rankings, helpful reviews, categories compare, brand performance, and trending all show the same pattern: a long pre-optimization bar collapses to almost nothing.
-The post-optimization bar for value rankings is essentially a pixel — that's the 1.4 millisecond result.
+Same numbers, on a log-millisecond axis. Pre-opt in terracotta, post-opt in sage. The maroon pair is reviews-trend — SQL didn't actually get faster there, what helps real users is the route cache, and we'll get to that.
+Visual story: top-value has the longest bar — it crosses the 100-second mark — and the green bar is barely visible because it drops under a second. Same shape repeats down the chart for value rankings, helpful reviews, categories compare, brand performance, trending. Long pre-opt bar collapses to almost nothing.
+The post-opt bar for value rankings is basically a single pixel. That's 1.4 milliseconds.
 -->
 
 ---
@@ -419,8 +421,8 @@ The post-optimization bar for value rankings is essentially a pixel — that's t
 
 <!--
 SPEAKER NOTES — Speedup Chart (~30s)
-Same routes ranked by speedup factor on a log scale. Four routes exceed 500x. Value rankings tops out at 12,133x; categories compare at almost 8,000x; helpful reviews at 1,290x.
-The bottom four bars are intentionally honest. Rating distribution moves a small amount; reviews trend is essentially flat — the SQL is the same and the cache helps repeat reads, not the first measured run; and the rest are already index-served from the base schema.
+Same routes, ranked by speedup factor on a log-x axis. Four of them exceed 500x. Value rankings tops out at 12,133x, categories compare just under 8,000x, helpful reviews at 1,290x.
+The bottom four bars are intentionally honest. Rating distribution moves a small amount. Reviews trend is essentially flat — same SQL, the cache helps repeat reads, not the first measured run. The rest are already index-served from the base schema, so there's just no headroom.
 -->
 
 ---
@@ -459,11 +461,11 @@ The bottom four bars are intentionally honest. Rating distribution moves a small
 
 <!--
 SPEAKER NOTES — Optimization Techniques (~60s)
-The rubric asks us to address four techniques. Here they are, left to right.
-**Indexing**: foreign-key indexes on Products and Reviews; a composite (asin, review_timestamp) index that helps helpful-reviews and trending; a partial index on verified-true reviews; a partial *expression* index on the discount expression itself, which is what makes deals fast in the base schema; a trigram index on title for keyword search; and a covering index on the materialized view's default Balanced score.
-**Materialized views**: three of them, refreshed via a Node script. The value-score components view is the workhorse — it pre-computes per-category bounds, normalized components, and a default score.
-**Restructuring**: three concrete examples — rank-then-aggregate for helpful reviews, page-then-join for browse lists, and a two-path split for value rankings.
-**Caching**: a small in-memory five-minute TTL cache on a few routes where repeat reads dominate.
+Rubric wants us to address four techniques. Left to right.
+Indexing — FK indexes on Products and Reviews; a composite on (asin, review_timestamp) which helps helpful-reviews and trending; a partial index on verified-true reviews; a partial expression index on the discount expression itself, which is actually what makes deals fast in the base schema. A trigram index on title for keyword search. And a covering index on the materialized view's default Balanced score.
+Materialized views — three of them, refreshed by a Node script. The value-score components view does most of the heavy lifting: precomputed per-category bounds, normalized components, and the default score.
+Restructuring — three concrete examples. Rank-then-aggregate for helpful reviews. Page-then-join for browse lists. Two-path split on value rankings — and we'll dig into all three.
+Caching — a small five-minute in-memory TTL cache on a few routes where repeat reads dominate. Brand performance is already MV-served, so no route cache there.
 -->
 
 ---
@@ -510,10 +512,10 @@ Read precomputed per-category bounds and recent-review markers from <code>mv_val
 
 <!--
 SPEAKER NOTES — Top Value Deep Dive (~45s)
-Top value asks: for each product, return those that are *cheaper than their category average* and *rated above their category average*, gated by an EXISTS clause requiring a recent review since a user-supplied date.
-The original query was correlated. For every one of 1.4 million products, it computed two category averages and ran an EXISTS over the Reviews table. That's why pre-optimization timing is 325 seconds — over five minutes.
-The optimization is conceptually simple: read the per-category bounds and the recent-review markers from the materialized view, and index both the recent-review flag and the join column for `reviewedSince`. The EXISTS semantics are preserved exactly — we moved the work from query time to materialized-view refresh time.
-End result: 855 milliseconds — a 380x speedup, and well under one second.
+Top value asks: for each product, return the ones cheaper than their category average and rated above their category average, gated by an EXISTS check requiring a recent review since some user-supplied date.
+Original was correlated. For every one of 1.4 million products it computed two category averages and ran an EXISTS over Reviews. Which is why it took five and a half minutes — we did not start out with this number under control.
+Optimization is conceptually pretty simple: read the per-category bounds and the recent-review markers from the materialized view, and index the recent-review flag plus the `reviewedSince` join column. EXISTS semantics are preserved exactly — we just moved the work from query time to MV refresh time.
+End result: 855 milliseconds. 380x speedup, well under a second.
 -->
 
 ---
@@ -562,11 +564,11 @@ Original query computed global and per-category bounds, normalized four componen
 
 <!--
 SPEAKER NOTES — Value Rankings Deep Dive (~50s)
-Value rankings is our most-tuned query — and the largest measured speedup in the deck.
-What it does: it normalizes four signals — rating strength, review depth, price efficiency, and recent activity — over the catalog and per-category bounds, then ranks products by a user-weighted score. The user can change the weights with sliders.
-Why the original was slow: every request recomputed global *and* per-category bounds, normalized four components, joined back to Products, and applied weights. That's seventeen seconds.
-The optimization splits into two paths. **Path one**, the Balanced preset 0.4/0.2/0.2/0.2, hits the indexed precomputed default score on the materialized view — pure index range scan, 1.4 milliseconds. **Path two**, custom weights, only rescores the materialized normalized components, skipping the expensive global and per-category aggregation entirely.
-Twelve thousand-x speedup, and post-opt is in the noise floor.
+Value rankings is our most-tuned query, and the largest measured speedup in the deck.
+What it does: normalizes four signals — rating strength, review depth, price efficiency, recent activity — over the catalog and per-category bounds, then ranks products by a user-weighted score. The user moves sliders to change the weights.
+Why the original was slow: every request recomputed global *and* per-category bounds, normalized four components, joined back to Products, applied weights. Seventeen seconds, every time someone moved a slider.
+Optimization splits into two paths. Path one, the Balanced preset 0.4 / 0.2 / 0.2 / 0.2, hits the indexed precomputed default score on the materialized view — pure index range scan, 1.4 ms. Path two, custom weights, only rescores the materialized normalized components. Skips all the global and per-category aggregation completely.
+Twelve-thousand-x. Post-opt is in the noise floor.
 -->
 
 ---
@@ -615,8 +617,8 @@ A 5-minute route cache further smooths repeat loads of the analytics page.
 <!--
 SPEAKER NOTES — Helpful Reviews and Category Compare (~50s)
 Two more deep dives, side by side.
-**Helpful Reviews** is a pure restructuring win. The original query computed a reviewer-aggregate CTE over *every* reviewer for the product, then filtered down to the top reviews at the end. The optimized path reverses that order: rank the top-k reviews first, then compute reviewer stats only for that small set with a lateral aggregation. Same output rows, far less work — 9 seconds down to 7 milliseconds.
-**Category Compare** is a materialized-view win. The original ran a live aggregate over Products joined to Reviews joined to Categories — about 3 seconds. The optimized path reads from `mv_category_compare`, which precomputes per-category counts, averages, and rating bands at refresh time. A 5-minute route cache further smooths repeat loads of the analytics page. End result: 0.4 milliseconds, almost 8,000x.
+Helpful reviews on the left is a pure restructuring win. The original computed a reviewer-aggregate CTE over *every* reviewer for the product, then filtered down to the top ones at the very end. Optimized path reverses that order — rank the top-k reviews first, then compute reviewer stats only for that small set, with a lateral aggregation. Same output rows, way less work. 9 seconds down to 7 ms.
+Category compare on the right is a materialized-view win. Original ran a live aggregate over Products joined to Reviews joined to Categories — about 3 seconds. Optimized reads from `mv_category_compare`, which precomputes per-category counts, averages, and rating bands at refresh time. A 5-minute route cache further smooths repeat loads of the analytics page. 0.4 milliseconds, almost 8,000x.
 -->
 
 ---
@@ -633,11 +635,11 @@ Two more deep dives, side by side.
 
 <!--
 SPEAKER NOTES — Honest Results (~40s)
-We want to be transparent about the routes that didn't move.
-The first row — product detail, cart savings, search, categories, brands, deals — those are all already index-served by base-schema indexes, or they're primary-key lookups, or they're small lookup tables. There's no headroom; we're at sub-millisecond already.
-Rating distribution is a small per-ASIN aggregate; we deliberately didn't over-engineer it.
-Reviews trend is the most interesting honest case. The post-optimization median is *slightly slower* than the pre — 0.95x. The SQL is the same; the planner already chose well for our representative input. What helps real users is the five-minute route cache, but the benchmark records the *first* EXPLAIN ANALYZE run, so the cache benefit doesn't show up in the table.
-We chose not to contrive optimizations on already-cheap queries — and we report median first-run numbers, not cache-warmed.
+Want to be transparent about the routes that didn't move.
+First row — product detail, cart savings, search, categories, brands, deals — those are all already index-served by base-schema indexes, primary-key lookups, or small lookup tables. We're at sub-millisecond already, there's just no headroom.
+Rating distribution is a small per-ASIN aggregate. We deliberately didn't over-engineer it.
+Reviews trend is the interesting honest case. Post-opt median is *slightly slower* than pre — 0.95x. Same SQL — the planner picked well for our representative input. What actually helps real users on that route is the five-minute route cache, but the benchmark records the *first* EXPLAIN ANALYZE run, so the cache benefit doesn't show up in the number.
+We chose not to fake optimizations on already-cheap queries. And we're reporting median first-run, not cache-warmed.
 -->
 
 ---
@@ -679,12 +681,12 @@ Custom SVG bar / horizontal-bar / line charts; layout deliberately distinct from
 
 <!--
 SPEAKER NOTES — Robustness, Testing, Look and Feel (~45s)
-This slide covers the rubric's robustness and look-and-feel categories.
-On input sanity: every route validates — ASIN regex, required parameters, numeric and date range checks, zero-sum weight rejection on value rankings, a 200-ASIN cap on the cart endpoint.
-SQL safety: every query uses parameterized `pg` bindings; there's no string concatenation anywhere in the SQL layer.
-Tests: we have route, query-mode-selection, cache, and validation tests on the server, and on the client we cover the API path builder, routing, cart behavior, charts, and the query-mode toggle.
-UI robustness: every API-backed page has loading, empty, and error states, and we use abortable fetches so stale results never overwrite a newer filter change.
-Look and feel: charts are custom SVG, and the layout is intentionally distinct from the HW2 starter.
+This slide hits the rubric's robustness and look-and-feel boxes.
+Input sanity — every route validates. ASIN regex, required parameters, numeric and date range checks, zero-sum weight rejection on value rankings, 200-ASIN cap on the cart endpoint.
+SQL safety — every query goes through parameterized pg bindings. Zero string concatenation anywhere in the SQL layer.
+Tests — server side covers route, query-mode-selection, cache, validation. Client side covers the API path builder, routing, cart, charts, the query-mode toggle.
+UI robustness — every API-backed page has loading, empty, and error states, and we use abortable fetches so a stale result never overwrites a newer filter change.
+Look and feel — charts are custom SVG, layout is intentionally distinct from the HW2 starter.
 -->
 
 ---
@@ -702,11 +704,11 @@ Look and feel: charts are custom SVG, and the layout is intentionally distinct f
 <!--
 SPEAKER NOTES — Technical Challenges (~50s)
 Five challenges worth calling out.
-**Entity alignment** — child versus parent ASIN, plus orphan reviews. Solved by accepting both columns, falling back to parent ASIN, and dropping orphans before ingestion.
-**Brand entity resolution** — no brand column in the source. We had to be conservative: title-prefix extraction, punctuation and legal-suffix normalization, canonical names, and a 5-product threshold to avoid one-off pseudo-brands.
-**Multi-million-row review files** — too large to fit in memory comfortably. Solved with chunked streaming, incremental writes, and stable foreign-key tracking.
-**Optimization tradeoffs** — some of our rewritten SQL was actually *slower* than the planner's original choice. We kept original variants for comparison, used materialized views only for stable aggregates, and route-cached only repeat-heavy endpoints.
-**Source asymmetry** — the checked-in review CSV is smaller than what we loaded. We documented this and made the cleaner discover additional streams in `data/raw/`.
+Entity alignment — child versus parent ASIN, plus orphan reviews. We accept both columns, fall back to parent ASIN, and drop orphans before ingestion.
+Brand resolution — no brand column in the source. We had to be conservative: title-prefix extraction, normalization, canonical names, and the 5-product threshold to keep one-off pseudo-brands out of the table.
+Multi-million-row review files — too big to fit in memory comfortably. Chunked streaming, incremental writes, stable foreign-key tracking.
+Optimization tradeoffs — and this one bit us a few times. Some of our rewritten SQL was actually *slower* than the planner's original choice. So we kept original variants for comparison, used MVs only for stable aggregates, and route-cached only repeat-heavy endpoints.
+Source asymmetry — the checked-in review CSV is a smaller subset than what we loaded for the demo. We documented this clearly and made the cleaner discover additional streams in `data/raw/`.
 -->
 
 ---
@@ -752,9 +754,9 @@ Deployment — TAs can access the live site during the presentation. Local fallb
 
 <!--
 SPEAKER NOTES — Deployment Extra Credit (~30s)
-We claim deployment as our extra-credit feature. The frontend is on Render at the URL shown; the API is on Vercel; the database is AWS RDS PostgreSQL with all the indexes and materialized views applied.
-Cross-service wiring is the standard pattern: the frontend points at the API via VITE_API_BASE_URL at build time, and the API CORS allowlist is set to the frontend origin.
-For the live demo, we'll use the deployed URL. We have a local fallback ready in case of network issues.
+Deployment is our extra credit. Frontend's on Render at the URL on the slide, API's on Vercel, database is AWS RDS Postgres with all the indexes and materialized views applied.
+Wiring is the standard pattern — frontend points at the API via VITE_API_BASE_URL at build time, API CORS allowlist points back at the frontend origin.
+For the live demo we'll use the deployed URL. We've got a local fallback ready in case anything network-flaky happens.
 -->
 
 ---
@@ -774,8 +776,8 @@ Following `docs/demo_script.md`. Each step calls real routes against the deploye
 
 <!--
 SPEAKER NOTES — Live Demo Road Map (~30s)
-Now we'll switch to the deployed app for the live demo. The road map: home and search first, then a product detail page with all four detail routes, then the cart, then analytics with three charts, then value rankings with the slider, and we'll close on the deployment URL.
-For each step I'll mention the route being called and flip the optimized toggle where it's interesting. We'll spend the most time on value rankings — that's the twelve-thousand-x route.
+Switching to the deployed app now. Plan: home and search first, then a product detail page hitting all four detail routes, then cart, then analytics with three charts, then value rankings with the slider — and we'll close on the deployment URL.
+For each step I'll call out the route being hit and flip the optimized toggle where it's interesting. Most of our time goes on value rankings — that's the twelve-thousand-x route.
 -->
 
 ---
@@ -793,9 +795,9 @@ For each step I'll mention the route being called and flip the optimized toggle 
 
 <!--
 SPEAKER NOTES — Summary (~40s)
-To wrap up:
-Two large overlapping datasets, integrated through ASIN linking and brand canonicalization. A normalized 3NF schema with five base relations and three materialized views as derived read models. Eight complex query families with full pre/post benchmarks — and two of them clear the rubric's 15-second pre-optimization bar by wide margins.
-We covered all four optimization techniques the rubric asks about — indexing including partial expression and covering indexes, materialized views, query restructuring, and TTL caching. And we kept the routes that did *not* benefit in the timing table, with honest reasons.
-The app is live on Render plus Vercel plus AWS RDS, and we're happy to take questions.
-Thank you.
+Quick wrap-up.
+Two large overlapping datasets, integrated through ASIN linking and brand canonicalization. A normalized 3NF schema with five base relations, plus three materialized views as derived read models. Eight complex query families, all benchmarked pre and post — and two of them clear the rubric's 15-second pre-opt bar by a wide margin.
+We hit all four optimization techniques the rubric asks about — indexing including the partial expression and covering indexes, materialized views, query restructuring, TTL caching. And we kept the routes that didn't benefit in the timing table, with honest reasons why.
+App is live on Render plus Vercel plus AWS RDS, and we're happy to take questions.
+Thanks.
 -->
