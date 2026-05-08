@@ -12,6 +12,7 @@ const categoryProductsQuery = `
       WHEN p.list_price IS NOT NULL
        AND p.list_price > 0
        AND p.price IS NOT NULL
+       AND p.price > 0
        AND p.price < p.list_price
       THEN ROUND(((1 - (p.price / p.list_price)) * 100)::numeric, 1)::float
       ELSE NULL
@@ -27,7 +28,7 @@ const categoryProductsQuery = `
   WHERE c.category_name = $1
     AND COALESCE(p.stars, 0) >= $2
     AND ($2 = 0 OR COALESCE(p.review_count, 0) > 0)
-    AND ($3::numeric IS NULL OR p.price <= $3)
+    AND ($3::numeric IS NULL OR (p.price IS NOT NULL AND p.price > 0 AND p.price <= $3))
   ORDER BY
     CASE
       WHEN p.stars >= 4 AND COALESCE(p.review_count, 0) > 0 THEN 0
@@ -53,6 +54,7 @@ const brandProductsQuery = `
       WHEN p.list_price IS NOT NULL
        AND p.list_price > 0
        AND p.price IS NOT NULL
+       AND p.price > 0
        AND p.price < p.list_price
       THEN ROUND(((1 - (p.price / p.list_price)) * 100)::numeric, 1)::float
       ELSE NULL
@@ -68,7 +70,7 @@ const brandProductsQuery = `
   WHERE b.brand_name = $1
     AND COALESCE(p.stars, 0) >= $2
     AND ($2 = 0 OR COALESCE(p.review_count, 0) > 0)
-    AND ($3::numeric IS NULL OR p.price <= $3)
+    AND ($3::numeric IS NULL OR (p.price IS NOT NULL AND p.price > 0 AND p.price <= $3))
   ORDER BY
     CASE
       WHEN p.stars >= 4 AND COALESCE(p.review_count, 0) > 0 THEN 0
@@ -107,7 +109,7 @@ const categoryProductsQueryOptimized = `
     JOIN target_category tc ON p.category_id = tc.category_id
     WHERE COALESCE(p.stars, 0) >= $2
       AND ($2 = 0 OR COALESCE(p.review_count, 0) > 0)
-      AND ($3::numeric IS NULL OR p.price <= $3)
+      AND ($3::numeric IS NULL OR (p.price IS NOT NULL AND p.price > 0 AND p.price <= $3))
     ORDER BY
       CASE
         WHEN p.stars >= 4 AND COALESCE(p.review_count, 0) > 0 THEN 0
@@ -131,6 +133,7 @@ const categoryProductsQueryOptimized = `
       WHEN pp.list_price IS NOT NULL
        AND pp.list_price > 0
        AND pp.price IS NOT NULL
+       AND pp.price > 0
        AND pp.price < pp.list_price
       THEN ROUND(((1 - (pp.price / pp.list_price)) * 100)::numeric, 1)::float
       ELSE NULL
@@ -180,7 +183,7 @@ const brandProductsQueryOptimized = `
     JOIN target_brand tb ON p.brand_id = tb.brand_id
     WHERE COALESCE(p.stars, 0) >= $2
       AND ($2 = 0 OR COALESCE(p.review_count, 0) > 0)
-      AND ($3::numeric IS NULL OR p.price <= $3)
+      AND ($3::numeric IS NULL OR (p.price IS NOT NULL AND p.price > 0 AND p.price <= $3))
     ORDER BY
       CASE
         WHEN p.stars >= 4 AND COALESCE(p.review_count, 0) > 0 THEN 0
@@ -204,6 +207,7 @@ const brandProductsQueryOptimized = `
       WHEN pp.list_price IS NOT NULL
        AND pp.list_price > 0
        AND pp.price IS NOT NULL
+       AND pp.price > 0
        AND pp.price < pp.list_price
       THEN ROUND(((1 - (pp.price / pp.list_price)) * 100)::numeric, 1)::float
       ELSE NULL

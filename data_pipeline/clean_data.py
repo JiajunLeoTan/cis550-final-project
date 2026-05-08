@@ -313,6 +313,16 @@ def clean_products(categories_df):
     # Price fields arrive as strings with dollar signs and commas.
     df["price"] = df["price"].apply(parse_price)
     df["list_price"] = df["list_price"].apply(parse_price)
+    non_positive_price = df["price"].notna() & (df["price"] <= 0)
+    non_positive_list_price = df["list_price"].notna() & (df["list_price"] <= 0)
+    if non_positive_price.any() or non_positive_list_price.any():
+        print(
+            "  Converted non-positive prices to NULL: "
+            f"{int(non_positive_price.sum())} price, "
+            f"{int(non_positive_list_price.sum())} list_price"
+        )
+        df.loc[non_positive_price, "price"] = np.nan
+        df.loc[non_positive_list_price, "list_price"] = np.nan
 
     # Numeric columns are mixed strings/numbers in the raw export.
     df["stars"] = pd.to_numeric(df["stars"], errors="coerce")

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import Rating from './Rating.jsx';
-import { formatCurrency } from '../utils/format.js';
+import { formatCurrency, formatProductPrice, isValidPrice } from '../utils/format.js';
 
 function monogram(title = '') {
   const first = title.trim().split(/\s+/).filter(Boolean)[0] || '';
@@ -26,6 +26,8 @@ export default function ProductCard({ product, badge }) {
   const showBadge = badge ?? (is_best_seller ? { label: 'Best seller' } : null);
   const isPriceTag =
     showBadge && (showBadge.tone === 'positive' || showBadge.tone === 'discount');
+  const hasPrice = isValidPrice(price);
+  const hasListPrice = isValidPrice(list_price);
 
   return (
     <Link to={`/product/${encodeURIComponent(asin)}`} className="card card-hover product-card">
@@ -45,8 +47,8 @@ export default function ProductCard({ product, badge }) {
         <div className="product-title">{title || 'Untitled product'}</div>
         <div className="product-meta">
           <div>
-            <span className="price price--sm">{formatCurrency(price)}</span>
-            {list_price != null && price != null && list_price > price && (
+            <span className="price price--sm">{formatProductPrice(price)}</span>
+            {hasPrice && hasListPrice && list_price > price && (
               <span className="price-strike">{formatCurrency(list_price)}</span>
             )}
           </div>

@@ -4,7 +4,7 @@ import { api } from '../api/client.js';
 import { useApi } from '../api/useApi.js';
 import ProductCard from '../components/ProductCard.jsx';
 import { Empty, ErrorBanner, SkeletonGrid } from '../components/States.jsx';
-import { formatCurrency } from '../utils/format.js';
+import { formatProductPrice } from '../utils/format.js';
 
 const PRODUCT_PAGE_SIZE = 24;
 const CATEGORY_PAGE_SIZE = 8;
@@ -381,7 +381,7 @@ function CategoryCard({ category, minStars, maxPrice }) {
                 )}
               </div>
               <div className="category-preview-title">{p.title || 'Untitled product'}</div>
-              <div className="category-preview-price">{formatCurrency(p.price)}</div>
+              <div className="category-preview-price">{formatProductPrice(p.price)}</div>
             </Link>
           ))}
         </div>

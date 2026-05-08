@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useCart } from '../context/CartContext.jsx';
 import { Empty, ErrorBanner } from '../components/States.jsx';
-import { formatCurrency } from '../utils/format.js';
+import { formatCurrency, formatProductPrice, isValidPrice } from '../utils/format.js';
 
 export default function Cart() {
   const { items, remove, clear } = useCart();
@@ -128,9 +128,9 @@ export default function Cart() {
                     {[it.category_name, it.brand_name].filter(Boolean).join(' · ')}
                   </div>
                   <div style={{ marginTop: 6 }}>
-                    <span className="price price--sm">{formatCurrency(it.price)}</span>
-                    {it.list_price != null &&
-                      it.price != null &&
+                    <span className="price price--sm">{formatProductPrice(it.price)}</span>
+                    {isValidPrice(it.price) &&
+                      isValidPrice(it.list_price) &&
                       it.list_price > it.price && (
                         <span className="price-strike">
                           {formatCurrency(it.list_price)}

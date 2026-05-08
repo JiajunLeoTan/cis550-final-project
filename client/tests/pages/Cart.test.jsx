@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const { api } = vi.hoisted(() => ({
@@ -73,6 +73,16 @@ describe('Cart', () => {
     );
     expect(screen.getByText(/You save/i)).toBeInTheDocument();
     expect(screen.getByText(/\$4\.00/)).toBeInTheDocument();
+  });
+
+  it('shows unavailable for zero-priced cart items without a fake discount', async () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify([{ ...ITEM_A, price: 0 }]));
+    renderWith(<Cart />);
+    expect(await screen.findByText('Cleanser A')).toBeInTheDocument();
+    const itemDetails = screen.getByText('Cleanser A').closest('div');
+    expect(within(itemDetails).getByText('Price unavailable')).toBeInTheDocument();
+    expect(within(itemDetails).queryByText('$0.00')).toBeNull();
+    expect(within(itemDetails).queryByText('$14.00')).toBeNull();
   });
 
   it('renders the ASIN suffix when an item lacks an image', async () => {

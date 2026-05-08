@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
+  alternativesQuery,
+  alternativesQueryOptimized,
   brandProductsQuery,
   brandProductsQueryOptimized,
   categoryProductsQuery,
@@ -27,6 +29,24 @@ describe('product SQL regressions', () => {
     expect(dealsQuery).toMatch(order);
     expect(dealsQueryOptimized).toMatch(order);
     expect(dealsQuery).not.toMatch(/ORDER BY discount_pct/i);
+  });
+
+  it('price-sensitive product queries ignore non-positive product prices', () => {
+    for (const sql of [dealsQuery, dealsQueryOptimized]) {
+      expect(sql).toMatch(/p\.price\s+IS\s+NOT\s+NULL/i);
+      expect(sql).toMatch(/p\.price\s*>\s*0/i);
+      expect(sql).toMatch(/p\.list_price\s*>\s*0/i);
+    }
+
+    for (const sql of [
+      categoryProductsQuery,
+      categoryProductsQueryOptimized,
+      brandProductsQuery,
+      brandProductsQueryOptimized
+    ]) {
+      expect(sql).toMatch(/p\.price\s+IS\s+NOT\s+NULL\s+AND\s+p\.price\s*>\s*0\s+AND\s+p\.price\s*<=\s*\$3/i);
+      expect(sql).toMatch(/(?:p|pp)\.price\s*<\s*(?:p|pp)\.list_price/i);
+    }
   });
 
   it('positive minimum-rating filters require at least one product review', () => {
@@ -72,6 +92,17 @@ describe('product SQL regressions', () => {
     expect(topValueProductsQueryOptimized).not.toMatch(/m\.recent_review_count\s*>\s*0/i);
   });
 
+  it('top-value and value-ranking queries exclude non-positive prices from scoring', () => {
+    expect(topValueProductsQuery).toMatch(/p\.price\s+IS\s+NOT\s+NULL\s+AND\s+p\.price\s*>\s*0/i);
+    expect(topValueProductsQuery).toMatch(/p2\.price\s+IS\s+NOT\s+NULL\s+AND\s+p2\.price\s*>\s*0/i);
+    expect(topValueProductsQueryOptimized).toMatch(/m\.price\s*>\s*0/i);
+    expect(topValueProductsQueryOptimized).toMatch(/m\.cat_avg_price\s*>\s*0/i);
+
+    expect(valueRankingsQuery).toMatch(/WHERE price IS NOT NULL\s+AND price > 0\s+AND stars IS NOT NULL/i);
+    expect(valueRankingsQuery).toMatch(/WHERE p\.price IS NOT NULL\s+AND p\.price > 0\s+AND p\.stars IS NOT NULL/i);
+    expect(valueRankingsQueryOptimized).toMatch(/AND m\.price\s*>\s*0/i);
+  });
+
   it('live value rankings use the same dataset-relative recency window as the MV', () => {
     expect(valueRankingsQuery).toMatch(/review_horizon AS/i);
     expect(valueRankingsQuery).toMatch(
@@ -99,6 +130,19 @@ describe('product SQL regressions', () => {
     );
   });
 
+  it('alternatives fall back to cheaper products when the target rating is unreliable', () => {
+    for (const sql of [alternativesQuery, alternativesQueryOptimized]) {
+      expect(sql).toMatch(/COALESCE\(t\.review_count,\s*0\)\s*>\s*0/i);
+      expect(sql).toMatch(/p\.stars\s*>\s*t\.stars/i);
+      expect(sql).toMatch(/OR\s+t\.stars\s+IS\s+NULL/i);
+      expect(sql).toMatch(/OR\s+COALESCE\(t\.review_count,\s*0\)\s*<=\s*0/i);
+      expect(sql).toMatch(/t\.price\s*>\s*0/i);
+      expect(sql).toMatch(/p\.price\s*>\s*0/i);
+      expect(sql).toMatch(/p\.price\s+ASC\s+NULLS\s+LAST/i);
+      expect(sql).toMatch(/p\.asin\s+ASC/i);
+    }
+  });
+
   it('value-component DDL separates recent review count from all-time latest review timestamp', () => {
     for (const ddl of [perfDdl, schemaDdl]) {
       expect(ddl).toMatch(/recent_reviews AS/i);
@@ -109,6 +153,15 @@ describe('product SQL regressions', () => {
       expect(ddl).toMatch(
         /idx_mv_value_components_trending[\s\S]*review_count DESC,\s*asin ASC/i
       );
+    }
+  });
+
+  it('performance DDL treats non-positive prices as unavailable for price-derived structures', () => {
+    for (const ddl of [perfDdl, schemaDdl]) {
+      expect(ddl).toMatch(/idx_products_discount[\s\S]*list_price > 0[\s\S]*price > 0[\s\S]*price < list_price/i);
+      expect(ddl).toMatch(/MIN\(price\) FILTER \(WHERE price IS NOT NULL AND price > 0 AND stars IS NOT NULL\)/i);
+      expect(ddl).toMatch(/AVG\(price\) FILTER \(WHERE price IS NOT NULL AND price > 0\)/i);
+      expect(ddl).toMatch(/WHERE p\.price IS NOT NULL\s+AND p\.price > 0\s+AND p\.stars IS NOT NULL/i);
     }
   });
 });

@@ -4,7 +4,7 @@ import { api } from '../api/client.js';
 import { useApi } from '../api/useApi.js';
 import Rating from '../components/Rating.jsx';
 import { Empty, ErrorBanner } from '../components/States.jsx';
-import { formatCurrency } from '../utils/format.js';
+import { formatProductPrice } from '../utils/format.js';
 
 const PRESETS = [
   { name: 'Balanced', w: { wRating: 0.4, wReviews: 0.2, wPriceEff: 0.2, wRecent: 0.2 } },
@@ -170,7 +170,7 @@ export default function ValueRankings() {
                       {[top.brand_name, top.category_name].filter(Boolean).join(' · ')}
                     </div>
                     <div className="row gap-6" style={{ marginTop: 14, alignItems: 'baseline' }}>
-                      <span className="price">{formatCurrency(top.price)}</span>
+                      <span className="price">{formatProductPrice(top.price)}</span>
                       <span style={{ fontSize: 24 }}>
                         {((top.value_score || 0) * 100).toFixed(1)}
                       </span>
@@ -253,7 +253,7 @@ function RankRow({ rank, row }) {
         </div>
       </div>
       <Rating stars={row.stars} count={row.review_count} size={12} />
-      <span>{formatCurrency(row.price)}</span>
+      <span>{formatProductPrice(row.price)}</span>
       <span>{scorePct.toFixed(1)} / 100</span>
     </Link>
   );

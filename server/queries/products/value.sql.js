@@ -14,12 +14,14 @@ const topValueProductsQuery = `
   FROM products p
   JOIN categories c ON p.category_id = c.category_id
   WHERE p.price IS NOT NULL
+    AND p.price > 0
     AND p.stars IS NOT NULL
     AND p.price < (
       SELECT AVG(p2.price)
       FROM products p2
       WHERE p2.category_id = p.category_id
         AND p2.price IS NOT NULL
+        AND p2.price > 0
     )
     AND p.stars > (
       SELECT AVG(p3.stars)
@@ -87,10 +89,12 @@ const valueRankingsQuery = `
         MAX(price::float) AS max_price
       FROM products
       WHERE price IS NOT NULL
+        AND price > 0
         AND stars IS NOT NULL
       GROUP BY category_id
     ) category_price_bounds ON category_price_bounds.category_id = p.category_id
     WHERE p.price IS NOT NULL
+      AND p.price > 0
       AND p.stars IS NOT NULL
   )
   SELECT
@@ -152,11 +156,13 @@ const valueRankingsQuery = `
       MAX(price::float) AS max_price
     FROM products
     WHERE price IS NOT NULL
+      AND price > 0
       AND stars IS NOT NULL
     GROUP BY category_id
   ) category_price_bounds ON category_price_bounds.category_id = p.category_id
   CROSS JOIN dimension_bounds db
   WHERE p.price IS NOT NULL
+    AND p.price > 0
     AND p.stars IS NOT NULL
   ORDER BY value_score DESC NULLS LAST, p.stars DESC NULLS LAST, p.review_count DESC, p.asin ASC
   LIMIT 100;
@@ -176,7 +182,9 @@ const topValueProductsQueryOptimized = `
   FROM mv_value_score_components m
   JOIN products p ON p.asin = m.asin
   JOIN categories c ON c.category_id = m.category_id
-  WHERE m.price < m.cat_avg_price
+  WHERE m.price > 0
+    AND m.cat_avg_price > 0
+    AND m.price < m.cat_avg_price
     AND m.stars > m.cat_avg_stars
     AND m.latest_review_timestamp >= $1::timestamp
   ORDER BY m.stars DESC NULLS LAST, m.review_count DESC, m.price ASC NULLS LAST, m.asin ASC
@@ -201,6 +209,7 @@ const valueRankingsQueryOptimized = `
       AND $2::float = 0.2
       AND $3::float = 0.2
       AND $4::float = 0.2
+      AND m.price > 0
     ORDER BY m.value_score_default DESC NULLS LAST, m.stars DESC NULLS LAST, m.review_count DESC, m.asin ASC
     LIMIT 100
   ),
@@ -226,6 +235,7 @@ const valueRankingsQueryOptimized = `
       AND $3::float = 0.2
       AND $4::float = 0.2
     )
+      AND m.price > 0
     ORDER BY value_score DESC NULLS LAST, m.stars DESC NULLS LAST, m.review_count DESC, m.asin ASC
     LIMIT 100
   ),

@@ -7,7 +7,14 @@ import StarIcon from '../components/StarIcon.jsx';
 import ProductCard from '../components/ProductCard.jsx';
 import { Empty, ErrorBanner } from '../components/States.jsx';
 import BarChart from '../components/charts/BarChart.jsx';
-import { formatCount, formatCurrency, formatDate, formatStars } from '../utils/format.js';
+import {
+  formatCount,
+  formatCurrency,
+  formatDate,
+  formatProductPrice,
+  formatStars,
+  isValidPrice
+} from '../utils/format.js';
 
 export default function ProductDetail() {
   const { asin } = useParams();
@@ -55,10 +62,9 @@ export default function ProductDetail() {
           0
         ) / totalReviews
       : null;
-  const hasDiscount =
-    product.list_price != null &&
-    product.price != null &&
-    product.list_price > product.price;
+  const hasPrice = isValidPrice(product.price);
+  const hasListPrice = isValidPrice(product.list_price);
+  const hasDiscount = hasPrice && hasListPrice && product.list_price > product.price;
   const discountPct = hasDiscount
     ? Math.round((1 - product.price / product.list_price) * 100)
     : null;
@@ -127,7 +133,7 @@ export default function ProductDetail() {
           </h1>
 
           <div className="price" style={{ fontSize: 32 }}>
-            {formatCurrency(product.price)}
+            {formatProductPrice(product.price)}
             {hasDiscount && (
               <span style={{ color: 'var(--ink-3)', fontSize: 18 }}>
                 {' '}
@@ -240,7 +246,7 @@ export default function ProductDetail() {
 
       <section>
         <header className="section-header">
-          <h2 className="section-title">Cheaper, higher-rated alternatives</h2>
+          <h2 className="section-title">Cheaper alternatives</h2>
         </header>
         {altLoading ? (
           <div className="grid grid-4">
@@ -249,7 +255,7 @@ export default function ProductDetail() {
             ))}
           </div>
         ) : (alternatives || []).length === 0 ? (
-          <Empty title="No cheaper, higher-rated alternatives in this category." />
+          <Empty title="No cheaper alternatives in this category." />
         ) : (
           <div className="grid grid-4">
             {alternatives.map((p) => (

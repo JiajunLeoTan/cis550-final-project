@@ -13,7 +13,7 @@ beforeEach(() => {
 describe('POST /cart/savings', () => {
   it('returns the savings row from the optimized query path', async () => {
     pool.query.mockResolvedValueOnce({
-      rows: [{ items: 2, current_total: 50, list_total: 70, savings: 20 }]
+      rows: [{ total_list_price: 70, total_current_price: 50, total_savings: 20 }]
     });
 
     const res = await request(app)
@@ -21,20 +21,26 @@ describe('POST /cart/savings', () => {
       .send({ asins: [VALID_ASIN, ANOTHER_ASIN] });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ items: 2, current_total: 50, list_total: 70, savings: 20 });
+    expect(res.body).toEqual({
+      total_list_price: 70,
+      total_current_price: 50,
+      total_savings: 20
+    });
     expect(pool.query).toHaveBeenCalledTimes(1);
     expect(pool.query.mock.calls[0][1]).toEqual([[VALID_ASIN, ANOTHER_ASIN]]);
   });
 
   it('runs the original query path when optimized is not set', async () => {
-    pool.query.mockResolvedValueOnce({ rows: [{ items: 0, current_total: 0, list_total: 0, savings: 0 }] });
+    pool.query.mockResolvedValueOnce({
+      rows: [{ total_list_price: 0, total_current_price: 0, total_savings: 0 }]
+    });
 
     const res = await request(app)
       .post('/cart/savings')
       .send({ asins: [] });
 
     expect(res.status).toBe(200);
-    expect(res.body.items).toBe(0);
+    expect(res.body.total_current_price).toBe(0);
   });
 
   it('rejects when asins is missing', async () => {

@@ -9,6 +9,16 @@ export function formatCurrency(value, { compact = false } = {}) {
   }).format(num);
 }
 
+export function isValidPrice(value) {
+  if (value == null) return false;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0;
+}
+
+export function formatProductPrice(value) {
+  return isValidPrice(value) ? formatCurrency(value) : 'Price unavailable';
+}
+
 export function formatStars(value) {
   if (value == null) return '-';
   const n = Number(value);

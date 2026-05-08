@@ -35,6 +35,13 @@ describe('ProductCard', () => {
     expect(screen.getByText('$18.00')).toBeInTheDocument();
   });
 
+  it('shows unavailable instead of a zero product price', () => {
+    renderWith(<ProductCard product={{ ...FULL_PRODUCT, price: 0 }} />);
+    expect(screen.getByText('Price unavailable')).toBeInTheDocument();
+    expect(screen.queryByText('$0.00')).toBeNull();
+    expect(screen.queryByText('$18.00')).toBeNull();
+  });
+
   it('renders an explicit positive-toned badge as a discount overlay', () => {
     renderWith(
       <ProductCard

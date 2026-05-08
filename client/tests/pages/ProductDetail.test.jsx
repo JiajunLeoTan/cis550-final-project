@@ -107,6 +107,14 @@ describe('ProductDetail', () => {
     expect(screen.getByText(/ASIN: B0719KWG8H/)).toBeInTheDocument();
   });
 
+  it('treats a zero product price as unavailable', async () => {
+    api.product.mockResolvedValueOnce({ ...PRODUCT, price: 0 });
+    renderRoute(`/product/${PRODUCT.asin}`);
+    expect(await screen.findByText('Price unavailable')).toBeInTheDocument();
+    expect(screen.queryByText(/\$0\.00/)).toBeNull();
+    expect(screen.queryByText(/33% off/)).toBeNull();
+  });
+
   it('renders helpful reviews when present', async () => {
     renderRoute(`/product/${PRODUCT.asin}`);
     expect(await screen.findByText('Great')).toBeInTheDocument();
@@ -126,7 +134,7 @@ describe('ProductDetail', () => {
     renderRoute(`/product/${PRODUCT.asin}`);
     expect(await screen.findByText('No reviews yet.')).toBeInTheDocument();
     expect(
-      await screen.findByText('No cheaper, higher-rated alternatives in this category.')
+      await screen.findByText('No cheaper alternatives in this category.')
     ).toBeInTheDocument();
   });
 

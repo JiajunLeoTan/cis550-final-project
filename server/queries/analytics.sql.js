@@ -1,7 +1,7 @@
 const categoriesCompareQuery = `
   SELECT
     c.category_name,
-    AVG(p.price)::float AS avg_price,
+    (AVG(p.price) FILTER (WHERE p.price > 0))::float AS avg_price,
     AVG(p.stars)::float AS avg_rating,
     COUNT(p.asin)::int AS product_count
   FROM categories c

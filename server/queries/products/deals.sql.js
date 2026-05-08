@@ -15,6 +15,7 @@ const dealsQuery = `
   FROM products p
   JOIN categories c ON p.category_id = c.category_id
   WHERE p.price IS NOT NULL
+    AND p.price > 0
     AND p.list_price IS NOT NULL
     AND p.list_price > 0
     AND p.price < p.list_price
@@ -41,6 +42,7 @@ const dealsQueryOptimized = `
   FROM products p
   JOIN categories c ON p.category_id = c.category_id
   WHERE p.price IS NOT NULL
+    AND p.price > 0
     AND p.list_price IS NOT NULL
     AND p.list_price > 0
     AND p.price < p.list_price

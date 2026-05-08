@@ -132,9 +132,12 @@ a level above individual products.
 \subsection{Cleaning and Summary Statistics}
 The cleaner deduplicates products by ASIN, parses numeric prices and ratings,
 normalizes category foreign keys, extracts canonical brand entities from product
-titles, and drops brands with fewer than five products to \texttt{NULL
-brand\_id}. Brand extraction is intentionally conservative because the product
-source has no official brand column.
+titles, converts non-positive product and list prices to \texttt{NULL}, and
+drops brands with fewer than five products to \texttt{NULL brand\_id}. Zero and
+negative prices are treated as unavailable scrape artifacts, so price filters,
+cart totals, deal rankings, and value scores do not reward invalid prices. Brand
+extraction is intentionally conservative because the product source has no
+official brand column.
 
 For reviews, the pipeline streams CSV chunks so it can process multi-million-row
 inputs. It normalizes headers across the comment and Pure-ID sources, requires
@@ -249,9 +252,9 @@ the final UI needed stable browse destinations. \\
 Product Detail &
 \path{/products/:asin}, \path{/products/:asin/rating-distribution},
 \path{/products/:asin/helpful-reviews}, \path{/products/:asin/alternatives} &
-Shows one product with review evidence, reviewer context, cheaper higher-rated
-alternatives, and cart actions. This page joins product metadata with review
-analytics. \\
+Shows one product with review evidence, reviewer context, cheaper alternatives,
+and cart actions. When the current product has reliable rating evidence, the
+alternatives are also required to be higher-rated. \\
 Cart &
 \path{/cart/savings} &
 Persists selected ASINs in local storage and asks the backend to aggregate list
@@ -333,7 +336,8 @@ Path: \texttt{asin} string. Query: \texttt{optimized} bool optional. &
 \path{review_id} int; rating float; title/text strings; helpful votes int;
 verified bool; timestamp; reviewer total reviews int and average rating float. \\
 GET \path{/products/:asin/alternatives} &
-M4 query route. Finds cheaper, higher-rated products in the same category. &
+M4 query route. Finds cheaper same-category alternatives; when the target has a
+reliable rating, alternatives must also be higher-rated. &
 Path: \texttt{asin} string. Query: \texttt{optimized} bool optional. &
 Alternative rows with ASIN/title/image URL strings, price/stars floats, review
 count int, and category string. \\

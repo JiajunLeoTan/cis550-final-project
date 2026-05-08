@@ -1,5 +1,6 @@
-// Product-detail side panels: rating distribution, helpful reviews, and cheaper
-// higher-rated alternatives.
+// Product-detail side panels: rating distribution, helpful reviews, and
+// alternatives. Alternatives prefer cheaper, higher-rated products when the
+// target has a reliable rating; otherwise they fall back to cheaper products.
 
 const ratingDistributionQuery = `
   SELECT
@@ -46,6 +47,7 @@ const alternativesQuery = `
       asin,
       category_id,
       stars,
+      review_count,
       price
     FROM products
     WHERE asin = $1
@@ -63,12 +65,30 @@ const alternativesQuery = `
   JOIN categories c ON p.category_id = c.category_id
   WHERE p.asin <> $1
     AND t.price IS NOT NULL
-    AND t.stars IS NOT NULL
+    AND t.price > 0
     AND p.price IS NOT NULL
-    AND p.stars IS NOT NULL
+    AND p.price > 0
     AND p.price < t.price
-    AND p.stars > t.stars
-  ORDER BY p.stars DESC NULLS LAST, p.price ASC NULLS LAST, p.review_count DESC
+    AND (
+      (
+        t.stars IS NOT NULL
+        AND COALESCE(t.review_count, 0) > 0
+        AND p.stars IS NOT NULL
+        AND COALESCE(p.review_count, 0) > 0
+        AND p.stars > t.stars
+      )
+      OR t.stars IS NULL
+      OR COALESCE(t.review_count, 0) <= 0
+    )
+  ORDER BY
+    CASE
+      WHEN t.stars IS NOT NULL AND COALESCE(t.review_count, 0) > 0 THEN p.stars
+      ELSE NULL
+    END DESC NULLS LAST,
+    p.price ASC NULLS LAST,
+    p.review_count DESC,
+    p.stars DESC NULLS LAST,
+    p.asin ASC
   LIMIT 5;
 `;
 
@@ -123,9 +143,19 @@ const helpfulReviewsQueryOptimized = `
   ORDER BY tr.helpful_vote DESC, tr.review_timestamp DESC NULLS LAST, tr.review_id ASC;
 `;
 
-// The target product is a primary-key lookup, so scalar subqueries keep the
-// comparison simple for the planner.
+// The target product is a primary-key lookup, then candidates use the same
+// rating-aware comparison/fallback as the original path.
 const alternativesQueryOptimized = `
+  WITH target AS (
+    SELECT
+      asin,
+      category_id,
+      stars,
+      review_count,
+      price
+    FROM products
+    WHERE asin = $1
+  )
   SELECT
     p.asin,
     p.title,
@@ -134,15 +164,35 @@ const alternativesQueryOptimized = `
     p.stars::float AS stars,
     p.review_count,
     c.category_name
-  FROM products p
+  FROM target t
+  JOIN products p ON p.category_id = t.category_id
   JOIN categories c ON p.category_id = c.category_id
-  WHERE p.category_id = (SELECT category_id FROM products WHERE asin = $1)
-    AND p.asin <> $1
+  WHERE p.asin <> $1
+    AND t.price IS NOT NULL
+    AND t.price > 0
     AND p.price IS NOT NULL
-    AND p.stars IS NOT NULL
-    AND p.price < (SELECT price FROM products WHERE asin = $1)
-    AND p.stars > (SELECT stars FROM products WHERE asin = $1)
-  ORDER BY p.stars DESC NULLS LAST, p.price ASC NULLS LAST, p.review_count DESC
+    AND p.price > 0
+    AND p.price < t.price
+    AND (
+      (
+        t.stars IS NOT NULL
+        AND COALESCE(t.review_count, 0) > 0
+        AND p.stars IS NOT NULL
+        AND COALESCE(p.review_count, 0) > 0
+        AND p.stars > t.stars
+      )
+      OR t.stars IS NULL
+      OR COALESCE(t.review_count, 0) <= 0
+    )
+  ORDER BY
+    CASE
+      WHEN t.stars IS NOT NULL AND COALESCE(t.review_count, 0) > 0 THEN p.stars
+      ELSE NULL
+    END DESC NULLS LAST,
+    p.price ASC NULLS LAST,
+    p.review_count DESC,
+    p.stars DESC NULLS LAST,
+    p.asin ASC
   LIMIT 5;
 `;
 

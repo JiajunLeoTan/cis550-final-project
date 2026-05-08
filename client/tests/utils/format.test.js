@@ -1,11 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   formatCurrency,
+  formatProductPrice,
   formatStars,
   formatCount,
   formatPercent,
   formatMonth,
   formatDate,
+  isValidPrice,
   truncate
 } from '../../src/utils/format.js';
 
@@ -30,6 +32,23 @@ describe('formatCurrency', () => {
 
   it('coerces numeric strings', () => {
     expect(formatCurrency('19.99')).toBe('$19.99');
+  });
+});
+
+describe('product price formatting', () => {
+  it('treats only positive finite values as product prices', () => {
+    expect(isValidPrice(12.5)).toBe(true);
+    expect(isValidPrice('19.99')).toBe(true);
+    expect(isValidPrice(0)).toBe(false);
+    expect(isValidPrice(-1)).toBe(false);
+    expect(isValidPrice(null)).toBe(false);
+    expect(isValidPrice('not-a-number')).toBe(false);
+  });
+
+  it('renders unavailable product prices explicitly', () => {
+    expect(formatProductPrice(12.5)).toBe('$12.50');
+    expect(formatProductPrice(0)).toBe('Price unavailable');
+    expect(formatProductPrice(null)).toBe('Price unavailable');
   });
 });
 

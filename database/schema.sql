@@ -116,15 +116,16 @@ CREATE INDEX IF NOT EXISTS idx_products_discount
     WHERE list_price IS NOT NULL
       AND list_price > 0
       AND price IS NOT NULL
+      AND price > 0
       AND price < list_price;
 
 CREATE MATERIALIZED VIEW IF NOT EXISTS mv_value_score_components AS
 WITH category_price_bounds AS (
     SELECT
         category_id,
-        (MIN(price) FILTER (WHERE price IS NOT NULL AND stars IS NOT NULL))::float AS min_price,
-        (MAX(price) FILTER (WHERE price IS NOT NULL AND stars IS NOT NULL))::float AS max_price,
-        (AVG(price) FILTER (WHERE price IS NOT NULL))::float AS avg_price,
+        (MIN(price) FILTER (WHERE price IS NOT NULL AND price > 0 AND stars IS NOT NULL))::float AS min_price,
+        (MAX(price) FILTER (WHERE price IS NOT NULL AND price > 0 AND stars IS NOT NULL))::float AS max_price,
+        (AVG(price) FILTER (WHERE price IS NOT NULL AND price > 0))::float AS avg_price,
         (AVG(stars) FILTER (WHERE stars IS NOT NULL))::float AS avg_stars
     FROM Products
     GROUP BY category_id
@@ -173,6 +174,7 @@ base_components AS (
     LEFT JOIN recent_reviews rr ON rr.asin = p.asin
     LEFT JOIN latest_reviews lr ON lr.asin = p.asin
     WHERE p.price IS NOT NULL
+      AND p.price > 0
       AND p.stars IS NOT NULL
 ),
 bounds AS (
@@ -262,7 +264,7 @@ CREATE MATERIALIZED VIEW IF NOT EXISTS mv_category_compare AS
 SELECT
     c.category_id,
     c.category_name,
-    AVG(p.price)::float AS avg_price,
+    (AVG(p.price) FILTER (WHERE p.price > 0))::float AS avg_price,
     AVG(p.stars)::float AS avg_rating,
     COUNT(p.asin)::int AS product_count
 FROM Categories c
