@@ -4,7 +4,7 @@ import { api } from '../api/client.js';
 import { useApi } from '../api/useApi.js';
 import ProductCard from '../components/ProductCard.jsx';
 import Rating from '../components/Rating.jsx';
-import { Empty, ErrorBanner, SkeletonGrid } from '../components/States.jsx';
+import { Empty, ErrorBanner } from '../components/States.jsx';
 import { formatProductPrice } from '../utils/format.js';
 
 const DEFAULT_REVIEWED_SINCE = '2018-01-01';
@@ -199,6 +199,66 @@ export default function ValueRankings() {
             </div>
           </div>
 
+          <section className="card">
+            <div className="card-body">
+              <div
+                className="row between row-wrap"
+                style={{ alignItems: 'center', marginBottom: 'var(--s-4)' }}
+              >
+                <div>
+                  <span className="section-num">02</span>
+                  <h2 className="card-title">Top value products</h2>
+                </div>
+                <div className="section-actions">
+                  <label className="label" htmlFor="reviewedSince" style={{ margin: 0 }}>
+                    Reviewed since
+                  </label>
+                  <input
+                    id="reviewedSince"
+                    className="input"
+                    type="date"
+                    value={reviewedSince}
+                    onChange={(e) => setReviewedSince(e.target.value)}
+                    style={{ width: 170 }}
+                  />
+                </div>
+              </div>
+
+              <p className="section-deck" style={{ marginBottom: 'var(--s-5)' }}>
+                Products priced below their category average, rated above their category
+                average, and backed by recent review evidence.
+              </p>
+
+              {topValueError ? (
+                <ErrorBanner error={topValueError} />
+              ) : topValueLoading && topValueRows.length === 0 ? (
+                <div
+                  className="grid"
+                  style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}
+                >
+                  {Array.from({ length: 4 }).map((_, i) => (
+                    <div key={i} className="skeleton" style={{ height: 260 }} />
+                  ))}
+                </div>
+              ) : topValueRows.length === 0 ? (
+                <Empty title="No top-value products match this review window." />
+              ) : (
+                <div
+                  className="grid"
+                  style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}
+                >
+                  {topValueRows.map((p) => (
+                    <ProductCard
+                      key={p.asin}
+                      product={p}
+                      badge={{ label: 'Top value', tone: 'positive' }}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
           <div className="card">
             <div className="card-body">
               <div className="row between" style={{ alignItems: 'baseline', marginBottom: 'var(--s-4)' }}>
@@ -226,51 +286,6 @@ export default function ValueRankings() {
             </div>
           </div>
         </div>
-      </section>
-
-      <section className="section">
-        <header className="section-header">
-          <div>
-            <span className="section-num">02</span>
-            <h2 className="section-title">Top value products</h2>
-          </div>
-          <div className="section-actions">
-            <label className="label" htmlFor="reviewedSince" style={{ margin: 0 }}>
-              Reviewed since
-            </label>
-            <input
-              id="reviewedSince"
-              className="input"
-              type="date"
-              value={reviewedSince}
-              onChange={(e) => setReviewedSince(e.target.value)}
-              style={{ width: 170 }}
-            />
-          </div>
-        </header>
-
-        <p className="section-deck">
-          Products priced below their category average, rated above their category
-          average, and backed by recent review evidence.
-        </p>
-
-        {topValueError ? (
-          <ErrorBanner error={topValueError} />
-        ) : topValueLoading && topValueRows.length === 0 ? (
-          <SkeletonGrid count={4} />
-        ) : topValueRows.length === 0 ? (
-          <Empty title="No top-value products match this review window." />
-        ) : (
-          <div className="grid grid-4">
-            {topValueRows.map((p) => (
-              <ProductCard
-                key={p.asin}
-                product={p}
-                badge={{ label: 'Top value', tone: 'positive' }}
-              />
-            ))}
-          </div>
-        )}
       </section>
     </div>
   );
