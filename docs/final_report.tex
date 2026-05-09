@@ -606,9 +606,14 @@ After Milestone 3, the workload became more concentrated. A major reason is
 that many of the Milestone 4 route and query proposals were still based closely
 on the Milestone 3 query sketches and therefore carried forward assumptions
 that did not hold once the final dataset, schema, frontend requirements, and
-performance constraints were known. Leo Tan therefore made most of the design
-decisions needed to bridge the gap between the preliminary Milestone 3/Milestone 4
-artifacts and the final implemented system.
+performance constraints were known. The post-Milestone-3 work was therefore
+not just a matter of wrapping existing SQL in Express routes. The Milestone 3
+queries in \path{docs/reference/milestone3.pdf} were preliminary sketches with
+hard-coded literals, missing pagination and validation contracts, planned fields
+that did not exist in the final product table, and helper tables that were not
+part of the implemented schema. Leo Tan therefore had to redesign, parameterize,
+and reinforce most query semantics before they could become reliable API
+routes.
 
 In this later phase, Leo Tan completed most of the route design and API
 specification tightening, and then carried the majority of the backend
@@ -616,38 +621,34 @@ implementation, SQL revision, optimized query branches, materialized-view and
 index design, benchmark scripting, frontend integration, deployment work, and
 final documentation cleanup.
 
-Several examples show how the early query and route ideas changed before
-becoming the final application:
+The concrete post-Milestone-3 query revamps were:
 \begin{itemize}
-  \item The early trending-products and value-ranking proposals depended on
-  \texttt{bought\_in\_last\_month} or recent purchase volume fields, and the
-  early weighting proposal used \texttt{wBought}. Those fields did not exist in
-  the final dataset, so the implemented system had to be redesigned around
-  \texttt{recent\_review\_count}, computed from review timestamps, with
-  \texttt{wRecent} replacing \texttt{wBought}.
-  \item Several early route outlines were still conceptual rather than
-  implementation-ready. They did not yet account for parameter validation,
-  malformed ASIN handling, pagination, null-safe price logic, 404 behavior,
-  stable response shapes, or the original-versus-optimized query split used in
-  the final backend.
-  \item The alternatives route originally assumed a simpler ``higher stars and
-  lower price'' rule. The final route had to be tightened so it could still
-  return sensible cheaper alternatives when the target product had missing or
-  unreliable rating evidence.
-  \item The brand-performance proposal required redesign because the final
-  analytics needed broader brand-level aggregates and explicit
-  \texttt{verified\_review\_count} reporting, rather than only a simpler
-  verified-purchase filter over the joined review rows.
-  \item Reviewer-credibility and helpful-review logic also had to be adapted to
-  the final schema and optimization work. Reviewer totals and average ratings
-  are computed from \texttt{Reviews}, and the optimized helpful-review path
-  ranks the target product's top reviews before calculating reviewer stats.
-  \item The final system also includes additional implemented routes and
-  optimizations beyond the early drafts, including
-  \path{/products/top-value}, \path{/products/value-rankings},
-  \path{/products/category}, \path{/products/brand}, materialized-view-backed
-  analytics/value queries, and specialized indexes used by the benchmarked
-  optimized paths.
+  \item Product search, category comparison, cart savings, deals, alternatives,
+  rating distribution, helpful reviews, trending products, brand performance,
+  and review trend were all converted from fixed SQL sketches into validated,
+  parameterized API routes with stable response shapes.
+  \item Hard-coded values such as \texttt{'Coffee'}, \texttt{'Electronics'},
+  example ASINs, and fixed cart IDs became route parameters, request bodies,
+  pagination controls, and 400/404 validation behavior.
+  \item Incorrect or missing assumptions were repaired: \texttt{reviews} became
+  \texttt{review\_count}; \texttt{ReviewUsers} was replaced with reviewer
+  aggregates over \texttt{Reviews}; and nonexistent
+  \texttt{bought\_last\_month} became \texttt{recent\_review\_count} from
+  review timestamps.
+  \item Product-detail queries were reinforced with all 1--5 rating buckets,
+  reviewer-stat CTEs, top-review-first optimization, clean product existence
+  checks, and rating fallbacks for unreliable catalog counts.
+  \item Analytics and value queries were reinforced with materialized views,
+  indexes, caching, and optimized branches for category comparison, brand
+  performance, trending, top value, and weighted value rankings.
+  \item Additional final routes not present in Milestone 3 were implemented:
+  \path{/categories}, \path{/brands}, \path{/products/:asin},
+  \path{/products/category}, \path{/products/brand},
+  \path{/products/top-value}, and \path{/products/value-rankings}.
 \end{itemize}
+
+After the query-revamp work, Anika Madan made a small final-report contribution:
+she added the group-member names and contributed roughly twenty lines covering
+the problem statement and project goals.
 
 \end{document}
