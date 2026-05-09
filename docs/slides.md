@@ -771,13 +771,13 @@ Following `docs/demo_script.md`. Each step calls real routes against the deploye
 | 2 | **Product detail** | `/products/:asin` + rating-distribution + helpful-reviews + alternatives | Helpful reviews **9,118 → 7.1 ms** headline. |
 | 3 | **Cart savings** | `POST /cart/savings` | Aggregate list / current / savings; ASIN-array validation. |
 | 4 | **Analytics** | category compare, brand performance, review trend | Category compare **3,113 → 0.4 ms**; review trend cache. |
-| 5 | **Value rankings** | `/products/value-rankings`, Balanced preset + sliders | Value rankings **17,047 → 1.4 ms** (12,133×). |
+| 5 | **Value rankings** | `/products/value-rankings`, `/products/top-value`, sliders + Reviewed since | Value rankings **17,047 → 1.4 ms** (12,133×); top value **~380×**. |
 | 6 | **Close** | ER diagram + this deck | Final row counts, strongest speedup, deployment URL. |
 
 <!--
 SPEAKER NOTES — Live Demo Road Map (~30s)
-Switching to the deployed app now. Plan: home and search first, then a product detail page hitting all four detail routes, then cart, then analytics with three charts, then value rankings with the slider — and we'll close on the deployment URL.
-For each step I'll call out the route being hit and flip the optimized toggle where it's interesting. Most of our time goes on value rankings — that's the twelve-thousand-x route.
+Switching to the deployed app now. Plan: home and search first, then a product detail page hitting all four detail routes, then cart, then analytics with three charts, then value rankings with the slider and top-value shortlist, and we'll close on the deployment URL.
+For each step I'll call out the route being hit and flip the optimized toggle where it's interesting. Most of our time goes on value rankings because it now shows both the twelve-thousand-x weighted ranking route and the top-value route.
 -->
 
 ---

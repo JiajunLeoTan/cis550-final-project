@@ -2,9 +2,13 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client.js';
 import { useApi } from '../api/useApi.js';
+import ProductCard from '../components/ProductCard.jsx';
 import Rating from '../components/Rating.jsx';
-import { Empty, ErrorBanner } from '../components/States.jsx';
+import { Empty, ErrorBanner, SkeletonGrid } from '../components/States.jsx';
 import { formatProductPrice } from '../utils/format.js';
+
+const DEFAULT_REVIEWED_SINCE = '2018-01-01';
+const TOP_VALUE_LIMIT = 8;
 
 const PRESETS = [
   { name: 'Balanced', w: { wRating: 0.4, wReviews: 0.2, wPriceEff: 0.2, wRecent: 0.2 } },
@@ -35,6 +39,7 @@ function useDebounced(value, delay = 400) {
 
 export default function ValueRankings() {
   const [weights, setWeights] = useState(PRESETS[0].w);
+  const [reviewedSince, setReviewedSince] = useState(DEFAULT_REVIEWED_SINCE);
   const debounced = useDebounced(weights, 350);
 
   const keyed = `${debounced.wRating}|${debounced.wReviews}|${debounced.wPriceEff}|${debounced.wRecent}`;
@@ -42,9 +47,21 @@ export default function ValueRankings() {
     (opts) => api.valueRankings(debounced, opts),
     [keyed]
   );
+  const {
+    data: topValue,
+    loading: topValueLoading,
+    error: topValueError
+  } = useApi(
+    (opts) => api.topValue({ reviewedSince }, opts),
+    [reviewedSince]
+  );
 
   const rows = useMemo(() => (data || []).slice(0, 25), [data]);
   const top = rows[0];
+  const topValueRows = useMemo(
+    () => (topValue || []).slice(0, TOP_VALUE_LIMIT),
+    [topValue]
+  );
 
   const applyPreset = (preset) => setWeights(preset.w);
 
@@ -209,6 +226,51 @@ export default function ValueRankings() {
             </div>
           </div>
         </div>
+      </section>
+
+      <section className="section">
+        <header className="section-header">
+          <div>
+            <span className="section-num">02</span>
+            <h2 className="section-title">Top value products</h2>
+          </div>
+          <div className="section-actions">
+            <label className="label" htmlFor="reviewedSince" style={{ margin: 0 }}>
+              Reviewed since
+            </label>
+            <input
+              id="reviewedSince"
+              className="input"
+              type="date"
+              value={reviewedSince}
+              onChange={(e) => setReviewedSince(e.target.value)}
+              style={{ width: 170 }}
+            />
+          </div>
+        </header>
+
+        <p className="section-deck">
+          Products priced below their category average, rated above their category
+          average, and backed by recent review evidence.
+        </p>
+
+        {topValueError ? (
+          <ErrorBanner error={topValueError} />
+        ) : topValueLoading && topValueRows.length === 0 ? (
+          <SkeletonGrid count={4} />
+        ) : topValueRows.length === 0 ? (
+          <Empty title="No top-value products match this review window." />
+        ) : (
+          <div className="grid grid-4">
+            {topValueRows.map((p) => (
+              <ProductCard
+                key={p.asin}
+                product={p}
+                badge={{ label: 'Top value', tone: 'positive' }}
+              />
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

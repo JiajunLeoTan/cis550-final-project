@@ -266,9 +266,10 @@ Analytics &
 Visualizes category-level aggregates, brand-level review evidence, and monthly
 review trends. It is the most dashboard-like page and emphasizes comparison. \\
 Value Rankings &
-\path{/products/value-rankings} &
+\path{/products/value-rankings}, \path{/products/top-value} &
 Lets users weight rating strength, review depth, price efficiency, and recent
-activity. The Balanced preset uses \texttt{0.4/0.2/0.2/0.2}, matching the
+activity, while also surfacing a top-value shortlist filtered by recent review
+evidence. The Balanced preset uses \texttt{0.4/0.2/0.2/0.2}, matching the
 indexed default score in the optimized materialized view. \\
 \bottomrule
 \end{longtable}
@@ -419,7 +420,7 @@ aggregation. \\
 Ranks products in one category by recent review activity, then uses rating and
 review count as tie-breakers. &
 Review-horizon CTE, aggregation by ASIN, category/product/brand joins. \\
-\path{/products/top-value} on Home/Value flows &
+\path{/products/top-value} on Value Rankings &
 \path{server/queries/products/value.sql.js} &
 Finds products cheaper than their category average, rated above their category
 average, and reviewed since the requested date. &
@@ -563,71 +564,84 @@ and final submitted content.
 \section{Work Distribution and Query Evolution}
 Exact contribution percentages are difficult to assign because the project
 changed substantially between the early query-design milestones and the final
-implemented application. Through Milestone 3, the work was broadly shared:
-group members participated in project planning, dataset discussion, and initial
-SQL query sketches, while Leo Tan usually consolidated the final milestone
-writeups in \LaTeX.
+implemented application.
 
-After Milestone 3, the workload became more concentrated. Leo Tan completed most
-of the Milestone 4 route design and API specification work, then carried the
-majority of the final implementation: Express route handlers, parameter
-validation, SQL rewrites, optimized query variants, materialized-view and index
-design, benchmark scripts, frontend integration, deployment configuration, and
-final documentation cleanup. The earlier query drafts were useful as starting
-points, but many had to be tightened substantially to match the real schema,
-data limitations, route contracts, and performance requirements.
-
-\begin{center}
-\small
-\begin{tabularx}{\linewidth}{@{}L{0.22\linewidth}Y@{}}
-\toprule
-Area & Final contribution pattern \\
-\midrule
-Milestones 1--3 planning and query ideas &
-Shared across the group; Leo Tan consolidated and formatted final written
-submissions. \\
-Milestone 4 API design &
-Primarily Leo Tan; route names, request parameters, response shapes, and API
-contract decisions were revised from the early query sketches. \\
-Backend implementation &
-Primarily Leo Tan; includes route handlers, validation, original/optimized SQL
-selection, caching behavior, and error handling. \\
-Query tightening and optimization &
-Primarily Leo Tan; includes parameterized SQL, null-safe predicates,
-materialized views, indexes, query rewrites, and benchmark comparisons. \\
-Frontend integration and deployment &
-Primarily Leo Tan; includes wiring the React pages to the API, query-mode
-toggle behavior, environment configuration, and deployment debugging. \\
-\bottomrule
-\end{tabularx}
-\normalsize
-\end{center}
-
-Several examples show how the early SQL ideas changed before becoming the final
-application queries:
+\subsection*{Through Milestone 3 (Preliminary Design Phase)}
+The early phase of the project was more collaborative and mostly focused on
+schema planning, dataset selection, preliminary SQL design, and milestone
+writeups. In that phase:
 \begin{itemize}
-  \item The Milestone 3 trending-products query depended on a planned
-  \texttt{bought\_last\_month} product field. The actual dataset did not
-  provide a reliable field with that meaning, so the final implementation uses
-  \texttt{recent\_review\_count}, computed from \texttt{Reviews.review\_timestamp}
-  and later precomputed in \texttt{mv\_value\_score\_components}.
-  \item The initial reviewer-credibility and helpful-review queries assumed a
-  separate \texttt{ReviewUsers} table. The final schema computes reviewer total
-  reviews and average rating from the \texttt{Reviews} table itself, including
-  an optimized helpful-review path that ranks the target product's top reviews
-  before computing reviewer stats.
-  \item Early query examples used hard-coded literals such as fixed category
-  names, example ASINs, and static keyword strings. The final API uses
-  parameterized SQL bindings, validates malformed input, returns clear 400/404
-  responses, and supports pagination where needed.
-  \item The brand-performance query changed from filtering only verified
-  purchases directly to returning broader brand review statistics while also
-  reporting \texttt{verified\_review\_count}. This preserves the analytics
-  signal without discarding non-verified review evidence.
-  \item The final system adds routes and SQL not present in Milestone 3,
-  including \path{/products/top-value}, \path{/products/value-rankings},
-  \path{/products/category}, and \path{/products/brand}, plus optimized paths
-  backed by materialized views and specialized indexes.
+  \item \textbf{Anika Madan} led the preliminary design of five proposed API
+  routes and their underlying SQL queries: Product Keyword Search, Category
+  Comparison, Shopping Cart Savings, Review Trends, and Brand Performance. She
+  also helped shape early pre-aggregation ideas such as
+  \texttt{reviewer\_counts} and \texttt{brand\_product\_stats}.
+  \item \textbf{Chenguang Shen} co-designed the normalized five-table
+  PostgreSQL schema, contributed to the 3NF justification, and helped define
+  the parent-ASIN fallback used during entity resolution. He also co-designed
+  the Milestone 3 query catalog, drafted several complex queries, and
+  identified early bottlenecks such as per-row correlated subqueries and
+  full-table normalization work.
+  \item \textbf{Luis Garcia} identified the Amazon Products Dataset 2023,
+  contributed to summary statistics, proposed the weighted value-ranking idea
+  and cart discount aggregation feature, authored several Milestone 3 SQL query
+  drafts, and translated a number of those drafts into initial API route
+  outlines. He also contributed the early Top Value Products query idea in a
+  deliberately naive form.
+  \item \textbf{Leo Tan} participated in project planning and query iteration
+  during the early milestones, led group discussion in shaping the project
+  idea and identifying candidate queries, found the Amazon Reviews 2023
+  dataset, finalized milestone writeups in \LaTeX, and deployed the group's
+  AWS RDS instance.
+\end{itemize}
+
+\subsection*{After Milestone 3 (Implementation and Revision Phase)}
+After Milestone 3, the workload became more concentrated. A major reason is
+that many of the Milestone 4 route and query proposals were still based closely
+on the Milestone 3 query sketches and therefore carried forward assumptions
+that did not hold once the final dataset, schema, frontend requirements, and
+performance constraints were known. Leo Tan therefore made most of the design
+decisions needed to bridge the gap between the preliminary Milestone 3/Milestone 4
+artifacts and the final implemented system.
+
+In this later phase, Leo Tan completed most of the route design and API
+specification tightening, and then carried the majority of the backend
+implementation, SQL revision, optimized query branches, materialized-view and
+index design, benchmark scripting, frontend integration, deployment work, and
+final documentation cleanup.
+
+Several examples show how the early query and route ideas changed before
+becoming the final application:
+\begin{itemize}
+  \item The early trending-products and value-ranking proposals depended on
+  \texttt{bought\_in\_last\_month} or recent purchase volume fields, and the
+  early weighting proposal used \texttt{wBought}. Those fields did not exist in
+  the final dataset, so the implemented system had to be redesigned around
+  \texttt{recent\_review\_count}, computed from review timestamps, with
+  \texttt{wRecent} replacing \texttt{wBought}.
+  \item Several early route outlines were still conceptual rather than
+  implementation-ready. They did not yet account for parameter validation,
+  malformed ASIN handling, pagination, null-safe price logic, 404 behavior,
+  stable response shapes, or the original-versus-optimized query split used in
+  the final backend.
+  \item The alternatives route originally assumed a simpler ``higher stars and
+  lower price'' rule. The final route had to be tightened so it could still
+  return sensible cheaper alternatives when the target product had missing or
+  unreliable rating evidence.
+  \item The brand-performance proposal required redesign because the final
+  analytics needed broader brand-level aggregates and explicit
+  \texttt{verified\_review\_count} reporting, rather than only a simpler
+  verified-purchase filter over the joined review rows.
+  \item Reviewer-credibility and helpful-review logic also had to be adapted to
+  the final schema and optimization work. Reviewer totals and average ratings
+  are computed from \texttt{Reviews}, and the optimized helpful-review path
+  ranks the target product's top reviews before calculating reviewer stats.
+  \item The final system also includes additional implemented routes and
+  optimizations beyond the early drafts, including
+  \path{/products/top-value}, \path{/products/value-rankings},
+  \path{/products/category}, \path{/products/brand}, materialized-view-backed
+  analytics/value queries, and specialized indexes used by the benchmarked
+  optimized paths.
 \end{itemize}
 
 \end{document}

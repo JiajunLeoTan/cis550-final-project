@@ -3,7 +3,10 @@ import { screen, waitFor, act, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 const { api } = vi.hoisted(() => ({
-  api: { valueRankings: vi.fn() }
+  api: {
+    valueRankings: vi.fn(),
+    topValue: vi.fn()
+  }
 }));
 
 vi.mock('../../src/api/client.js', () => ({
@@ -28,8 +31,19 @@ const ROW = {
   img_url: 'https://x/a.jpg'
 };
 
+const TOP_VALUE_ROW = {
+  asin: 'B0000V',
+  title: 'Category Value Pick',
+  price: 9,
+  stars: 4.7,
+  review_count: 140,
+  category_name: 'Beauty',
+  img_url: 'https://x/v.jpg'
+};
+
 beforeEach(() => {
   api.valueRankings.mockReset().mockResolvedValue([ROW]);
+  api.topValue.mockReset().mockResolvedValue([TOP_VALUE_ROW]);
 });
 
 describe('ValueRankings', () => {
@@ -38,6 +52,10 @@ describe('ValueRankings', () => {
     expect(screen.getByRole('heading', { name: 'Value rankings' })).toBeInTheDocument();
     expect(screen.getByLabelText(/Rating strength/)).toBeInTheDocument();
     await waitFor(() => expect(api.valueRankings).toHaveBeenCalled());
+    await waitFor(() => expect(api.topValue).toHaveBeenCalledWith(
+      { reviewedSince: '2018-01-01' },
+      expect.any(Object)
+    ));
     expect(api.valueRankings.mock.calls[0][0]).toEqual({
       wRating: 0.4,
       wReviews: 0.2,
@@ -50,8 +68,11 @@ describe('ValueRankings', () => {
     renderWith(<ValueRankings />);
     expect(await screen.findByRole('heading', { name: 'Top result' })).toBeInTheDocument();
     expect(await screen.findByRole('heading', { name: 'Top 25' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Top value products' })).toBeInTheDocument();
     expect((await screen.findAllByText('Top Pick')).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/83\.0/).length).toBeGreaterThan(0);
+    expect(await screen.findByText('Category Value Pick')).toBeInTheDocument();
+    expect(screen.getByText('Top value')).toBeInTheDocument();
   });
 
   it('switches weights via the Quality first preset', async () => {
@@ -89,6 +110,35 @@ describe('ValueRankings', () => {
       await screen.findByText('No products match these weights.')
     ).toBeInTheDocument();
     expect(screen.getByText('No products matched.')).toBeInTheDocument();
+  });
+
+  it('refetches top-value products when the reviewed-since date changes', async () => {
+    renderWith(<ValueRankings />);
+    await waitFor(() => expect(api.topValue).toHaveBeenCalled());
+    api.topValue.mockClear();
+    fireEvent.change(screen.getByLabelText(/Reviewed since/), {
+      target: { value: '2020-01-01' }
+    });
+    await waitFor(() =>
+      expect(api.topValue).toHaveBeenCalledWith(
+        { reviewedSince: '2020-01-01' },
+        expect.any(Object)
+      )
+    );
+  });
+
+  it('shows the top-value empty state when no top-value products match', async () => {
+    api.topValue.mockResolvedValue([]);
+    renderWith(<ValueRankings />);
+    expect(
+      await screen.findByText('No top-value products match this review window.')
+    ).toBeInTheDocument();
+  });
+
+  it('renders the top-value error banner when the top-value query fails', async () => {
+    api.topValue.mockRejectedValueOnce(new Error('top value err'));
+    renderWith(<ValueRankings />);
+    expect(await screen.findByText('top value err')).toBeInTheDocument();
   });
 
   it('renders the error banner when ranking fails', async () => {

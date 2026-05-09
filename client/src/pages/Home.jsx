@@ -68,9 +68,10 @@ export default function Home() {
             compare across the corpus.
           </p>
           <p>
-            <Link to="/value">Value rankings</Link> lets you weight what good means
-            and re-rank the catalog live. The <Link to="/cart">cart</Link> keeps a
-            simple receipt of current price, list price, and savings.
+            <Link to="/value">Value rankings</Link> lets you weight what good means,
+            re-rank the catalog live, and surface top-value products. The{' '}
+            <Link to="/cart">cart</Link> keeps a simple receipt of current price,
+            list price, and savings.
           </p>
         </div>
       </section>
