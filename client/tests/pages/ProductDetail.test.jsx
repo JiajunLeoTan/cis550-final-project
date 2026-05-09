@@ -107,6 +107,31 @@ describe('ProductDetail', () => {
     expect(screen.getByText(/ASIN: B0719KWG8H/)).toBeInTheDocument();
   });
 
+  it('uses linked review counts when catalog review_count is zero', async () => {
+    api.product.mockResolvedValueOnce({
+      ...PRODUCT,
+      asin: 'B00290G0LW',
+      stars: 4.3,
+      review_count: 0
+    });
+    api.ratingDistribution.mockResolvedValueOnce([
+      { rating: 1, review_count: 10, verified_ratio: 0.4 },
+      { rating: 2, review_count: 5, verified_ratio: 0.4 },
+      { rating: 3, review_count: 17, verified_ratio: 0.5 },
+      { rating: 4, review_count: 24, verified_ratio: 0.6 },
+      { rating: 5, review_count: 95, verified_ratio: 0.8 }
+    ]);
+
+    renderRoute('/product/B00290G0LW');
+
+    expect(await screen.findByRole('heading', { name: 'Aveeno Cleanser' })).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.queryByText('No ratings yet')).not.toBeInTheDocument();
+    });
+    expect(screen.getByText('4.3')).toBeInTheDocument();
+    expect(screen.getAllByText(/151/).length).toBeGreaterThan(0);
+  });
+
   it('treats a zero product price as unavailable', async () => {
     api.product.mockResolvedValueOnce({ ...PRODUCT, price: 0 });
     renderRoute(`/product/${PRODUCT.asin}`);

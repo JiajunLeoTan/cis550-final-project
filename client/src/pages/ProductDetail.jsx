@@ -55,6 +55,19 @@ export default function ProductDetail() {
 
   const inCart = has(product.asin);
   const totalReviews = (rating || []).reduce((s, r) => s + (r.review_count || 0), 0);
+  const linkedAvgStars =
+    totalReviews > 0
+      ? (rating || []).reduce(
+          (s, r) => s + Number(r.rating || 0) * (r.review_count || 0),
+          0
+        ) / totalReviews
+      : null;
+  const catalogReviewCount = Number(product.review_count);
+  const displayReviewCount =
+    Number.isFinite(catalogReviewCount) && catalogReviewCount > 0
+      ? catalogReviewCount
+      : totalReviews;
+  const displayStars = product.stars ?? linkedAvgStars;
   const avgVerifiedRatio =
     totalReviews > 0
       ? (rating || []).reduce(
@@ -144,7 +157,7 @@ export default function ProductDetail() {
           </div>
 
           <div className="row gap-4">
-            <Rating stars={product.stars} count={product.review_count} size={16} />
+            <Rating stars={displayStars} count={displayReviewCount} size={16} />
             {avgVerifiedRatio != null && (
               <span className="meta-line">
                 {Math.round(avgVerifiedRatio * 100)}% verified

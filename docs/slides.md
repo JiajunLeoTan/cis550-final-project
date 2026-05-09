@@ -101,7 +101,7 @@ Our goal was to push that synthesis into the database. Take the noisy product an
 
 <!--
 SPEAKER NOTES — Application Map (~40s)
-Eight pages, every one of them hits the database. Home wires together search, deals, and trending picks. Browse, Category, and Brand do paginated lists with the filters in the URL — refresh-safe, shareable. Product Detail is actually four routes glued together: metadata, the rating histogram, the most helpful reviews with reviewer context, and cheaper higher-rated alternatives. Cart sums savings on the server. Analytics has three custom SVG charts driven by three analytics endpoints. Value Rankings is the slider page — four signals, user-weighted.
+Eight pages, every one of them hits the database. Home wires together search, deals, and trending picks. Browse, Category, and Brand do paginated lists with the filters in the URL — refresh-safe, shareable. Product Detail is actually four routes glued together: metadata, the rating histogram, the most helpful reviews with reviewer context, and cheaper higher-rated alternatives. When product metadata has a zero review count but linked reviews exist, the page uses the histogram as fallback evidence. Cart sums savings on the server. Analytics has three custom SVG charts driven by three analytics endpoints. Value Rankings is the slider page — four signals, user-weighted.
 Stack on the left is the whole system: React-Vite up front, Express-pg in the middle, Postgres on RDS, Python for the data side.
 -->
 
@@ -695,7 +695,7 @@ Look and feel — charts are custom SVG, layout is intentionally distinct from t
 
 | Challenge | Resolution |
 |---|---|
-| **Product / review entity alignment** — child vs. parent ASIN, orphan reviews. | Cleaner accepts both ASIN columns, **falls back to parent ASIN** when the child is missing from the catalog, drops orphans before ingestion. |
+| **Product / review entity alignment** — child vs. parent ASIN, orphan reviews, catalog count drift. | Cleaner accepts both ASIN columns, **falls back to parent ASIN** when the child is missing from the catalog, drops orphans, and the UI falls back to linked histogram counts when catalog `review_count` is zero. |
 | **Brand entity resolution** — no brand column; noisy titles. | Conservative title-prefix extraction, punctuation / legal-suffix normalization, canonical display names, **5-product threshold** to avoid one-off entities. |
 | **Multi-million-row review files.** | Streaming chunked CSV processing, incremental review CSV writes, in-memory user / duplicate tracking, stable FK relationships preserved end-to-end. |
 | **Optimization tradeoffs.** | Some rewritten SQL was *slower* than the planner's choice. We kept original variants for comparison, used MVs only for stable aggregates, and route-cached only repeat-heavy endpoints. |
@@ -704,7 +704,7 @@ Look and feel — charts are custom SVG, layout is intentionally distinct from t
 <!--
 SPEAKER NOTES — Technical Challenges (~50s)
 Five challenges worth calling out.
-Entity alignment — child versus parent ASIN, plus orphan reviews. We accept both columns, fall back to parent ASIN, and drop orphans before ingestion.
+Entity alignment — child versus parent ASIN, plus orphan reviews and some catalog count drift. We accept both columns, fall back to parent ASIN, drop orphans before ingestion, and on product detail we use the linked histogram count when the product metadata says zero reviews.
 Brand resolution — no brand column in the source. We had to be conservative: title-prefix extraction, normalization, canonical names, and the 5-product threshold to keep one-off pseudo-brands out of the table.
 Multi-million-row review files — too big to fit in memory comfortably. Chunked streaming, incremental writes, stable foreign-key tracking.
 Optimization tradeoffs — and this one bit us a few times. Some of our rewritten SQL was actually *slower* than the planner's original choice. So we kept original variants for comparison, used MVs only for stable aggregates, and route-cached only repeat-heavy endpoints.

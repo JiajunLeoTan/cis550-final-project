@@ -254,8 +254,10 @@ Product Detail &
 \path{/products/:asin}, \path{/products/:asin/rating-distribution},
 \path{/products/:asin/helpful-reviews}, \path{/products/:asin/alternatives} &
 Shows one product with review evidence, reviewer context, cheaper alternatives,
-and cart actions. When the current product has reliable rating evidence, the
-alternatives are also required to be higher-rated. \\
+and cart actions. The rating header falls back to the linked review histogram
+when catalog review counts are missing or zero. When the current product has
+reliable rating evidence, the alternatives are also required to be
+higher-rated. \\
 Cart &
 \path{/cart/savings} &
 Persists selected ASINs in local storage and asks the backend to aggregate list
@@ -518,7 +520,10 @@ route caching improves repeat users rather than the first
 product ASINs with heterogeneous review sources. Some comment rows reference a
 child ASIN, some use \texttt{parent\_asin}, and many raw reviews do not appear
 in the product catalog. The cleaner handles both IDs, falls back to parent ASIN
-when appropriate, and removes orphan reviews before ingestion.
+when appropriate, and removes orphan reviews before ingestion. Because the
+product catalog's stored \texttt{review\_count} can disagree with the number of
+linked review rows, the product-detail UI treats the rating-distribution query
+as fallback evidence for the displayed review count and average rating.
 
 \textbf{Brand entity resolution.} Product titles are noisy and the catalog has
 no brand column. We used conservative title-prefix extraction, punctuation and
@@ -542,8 +547,8 @@ zero-sum ranking weights, and oversized cart arrays. SQL uses parameterized
 bindings throughout. Server tests mock the database pool and cover validation,
 query selection, caching, and response shape; client tests cover API path
 building, top-level routing including dynamic category, brand, and product
-routes, cart behavior, pages, charts, formatting helpers, and the query-mode
-toggle.
+routes, cart behavior, product-detail rating fallbacks, pages, charts,
+formatting helpers, and the query-mode toggle.
 
 \section*{Extra Credit and AI Tool Use}
 Deployment extra credit is claimed for the hosted application configuration. The
@@ -591,8 +596,9 @@ writeups. In that phase:
   \item \textbf{Leo Tan} participated in project planning and query iteration
   during the early milestones, led group discussion in shaping the project
   idea and identifying candidate queries, found the Amazon Reviews 2023
-  dataset, finalized milestone writeups in \LaTeX, and deployed the group's
-  AWS RDS instance.
+  dataset, designed the initial data-cleaning and ingestion pipeline,
+  provisioned the group's AWS RDS PostgreSQL instance, loaded the cleaned data
+  into it, and finalized milestone writeups in \LaTeX.
 \end{itemize}
 
 \subsection*{After Milestone 3 (Implementation and Revision Phase)}
